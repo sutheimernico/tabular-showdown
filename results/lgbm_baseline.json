@@ -1,0 +1,35 @@
+{
+  "params": {
+    "objective": "binary",
+    "verbosity": -1,
+    "n_jobs": -1,
+    "num_leaves": 20,
+    "learning_rate": 0.04210720687271331,
+    "n_estimators": 498,
+    "min_child_samples": 75,
+    "feature_fraction": 0.7821301115091406,
+    "bagging_fraction": 0.9993347652056921,
+    "bagging_freq": 2,
+    "lambda_l1": 3.733016835407741e-07,
+    "lambda_l2": 7.712017102370413e-05,
+    "seed": 42
+  },
+  "cv_auc": 0.9286238419873012,
+  "eval_metrics": {
+    "roc_auc": 0.9303594592956295,
+    "accuracy": 0.874,
+    "log_loss": 0.2713331982429653,
+    "brier": 0.08607696013391544
+  },
+  "timings": {
+    "tune_seconds": 157.43166164000104,
+    "fit_seconds": 1.2796778499996435,
+    "predict_seconds": 0.02014654699996754
+  },
+  "n_train": 32561,
+  "n_eval": 4000,
+  "n_trials": 30,
+  "n_folds": 3,
+  "seed": 42,
+  "timestamp": "2026-07-10T18:58:24.318504+00:00"
+}

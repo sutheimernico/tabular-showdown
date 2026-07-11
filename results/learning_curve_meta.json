@@ -1,0 +1,70 @@
+{
+  "sizes": [
+    200,
+    500,
+    1000,
+    2000,
+    5000,
+    10000
+  ],
+  "full_size_lgbm_logreg_only": 32561,
+  "seeds_by_size": {
+    "200": [
+      0,
+      1,
+      2
+    ],
+    "500": [
+      0,
+      1,
+      2
+    ],
+    "1000": [
+      0,
+      1,
+      2
+    ],
+    "2000": [
+      0,
+      1,
+      2
+    ],
+    "5000": [
+      0,
+      1
+    ],
+    "10000": [
+      0
+    ]
+  },
+  "full_train_seed": 0,
+  "n_eval": 4000,
+  "eval_set": "frozen 4000-row stratified subsample of adult.test (seed 42)",
+  "tabpfn": {
+    "row_cap": 10000,
+    "tabpfn_max_n": 5000,
+    "cap_reason": "compute safety valve: a TabPFN point took longer than 480s on CPU, larger sizes were skipped",
+    "device": "cpu",
+    "categorical_features_indices_used": true,
+    "categorical_encoding": "OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1, encoded_missing_value=-2) fitted on the train subsample only"
+  },
+  "lgbm_tuning_policy": {
+    "subsampled_sizes": "fresh Optuna search per (size, seed): n_trials=10, 3-fold CV",
+    "full_train": "reuses the 30-trial tuned params from results/lgbm_baseline.json",
+    "fit_s_note": "fit_s includes the Optuna search time where tuning ran fresh"
+  },
+  "logreg": "untuned linear reference: OneHot(ignore unknowns, NaN->'missing') + StandardScaler + LogisticRegression(max_iter=1000)",
+  "versions": {
+    "python": "3.13.13",
+    "tabpfn": "2.0.9",
+    "torch": "2.13.0+cu130",
+    "lightgbm": "4.6.0",
+    "optuna": "4.9.0",
+    "scikit-learn": "1.6.1"
+  },
+  "total_runtime_seconds": 2938.391577262002,
+  "runtime_note": "total_runtime_seconds is this invocation's wall time; the CSV was built incrementally and may span multiple resumed invocations",
+  "n_points": 46,
+  "resumed_from_existing_csv": false,
+  "timestamp": "2026-07-11T01:54:08.813172+00:00"
+}

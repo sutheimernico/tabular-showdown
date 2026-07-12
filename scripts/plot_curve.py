@@ -2,9 +2,10 @@
 
 x = training-set size (log scale), y = ROC-AUC on the frozen 4,000-row eval
 set. One line per model with markers at measured points, a min-max band
-across subsample seeds, direct labels at each line's right edge. The title
-states the actual finding computed from the data -- where (or whether) tuned
-LightGBM overtakes TabPFN -- rather than a canned claim.
+across subsample seeds, and a direct end-of-line label per series instead of
+a separate legend box. The title states the actual finding computed from the
+data -- where (or whether) tuned LightGBM overtakes TabPFN -- rather than a
+canned claim.
 
 Writes results/learning_curve.png and .svg.
 """
@@ -95,6 +96,16 @@ def main() -> None:
     fig, ax = plt.subplots(figsize=(10, 6), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
 
+    # Direct end-of-line labels are the only series legend here (no separate
+    # legend box -- one identification mechanism per chart, not two). TabPFN's
+    # line ends at n=5000, right at its crossover with LightGBM, so labeling it
+    # to the *right* of its last point (like the other two series) sits the
+    # text directly on LightGBM's rising line. Instead, its label anchors to
+    # the left of the point, in the 2k-5k gap where TabPFN's line already
+    # sits clearly above both others.
+    label_offsets = {"tabpfn": (-16, 10), "lgbm": (8, 0), "logreg": (8, 0)}
+    label_ha = {"tabpfn": "right", "lgbm": "left", "logreg": "left"}
+
     for model in ["logreg", "lgbm", "tabpfn"]:  # draw order: headline series on top
         color = MODEL_COLORS[model]
         series = agg.loc[agg["model"] == model]
@@ -106,16 +117,15 @@ def main() -> None:
             linewidth=2,
             marker="o",
             markersize=7,
-            label=MODEL_LABELS[model],
         )
-        # Direct label at the right edge of each line, in the series hue.
         last = series.iloc[-1]
         ax.annotate(
             MODEL_LABELS[model],
             xy=(last["n_train"], last["mean"]),
-            xytext=(8, 0),
+            xytext=label_offsets[model],
             textcoords="offset points",
             va="center",
+            ha=label_ha[model],
             fontsize=10,
             color=color,
         )
@@ -145,8 +155,7 @@ def main() -> None:
     else:
         cap_caption = "TabPFN stops here: >8 min/point on CPU "
     ax.axvline(tabpfn_max_n, color=INK_MUTED, linewidth=1, linestyle=(0, (2, 3)))
-    # Anchor left of the line, in the empty bottom-left region, so the caption
-    # never collides with the lower-right legend.
+    # Anchor left of the line, in the empty bottom-left region.
     ax.text(
         tabpfn_max_n,
         ax.get_ylim()[0] + 0.015,
@@ -159,10 +168,6 @@ def main() -> None:
 
     # Leave room on the right for the direct end-of-line labels.
     ax.set_xlim(right=ax.get_xlim()[1] * 1.6)
-
-    legend = ax.legend(loc="lower right", frameon=False, fontsize=9)
-    for text in legend.get_texts():
-        text.set_color(INK_SECONDARY)
 
     ax.set_title(
         _finding_title(agg, tabpfn_stopped_at_pretrain_cap),

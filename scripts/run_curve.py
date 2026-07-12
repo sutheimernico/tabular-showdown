@@ -161,6 +161,7 @@ def main() -> None:
             "tabpfn_max_n": tabpfn_max_n,
             "cap_reason": tabpfn_cap_reason,
             "device": "cpu",
+            "ignore_pretraining_limits": True,
             "categorical_features_indices_used": TABPFN_CATEGORICAL_PARAM_SUPPORTED,
             "categorical_encoding": (
                 "OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1, "

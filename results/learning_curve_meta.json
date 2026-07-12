@@ -45,6 +45,7 @@
     "tabpfn_max_n": 5000,
     "cap_reason": "compute safety valve: a TabPFN point took longer than 480s on CPU, larger sizes were skipped",
     "device": "cpu",
+    "ignore_pretraining_limits": true,
     "categorical_features_indices_used": true,
     "categorical_encoding": "OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1, encoded_missing_value=-2) fitted on the train subsample only"
   },

@@ -28,7 +28,7 @@ up and overtakes as data grows.
 1. **Data pipeline** — load adult.data/.test, clean (`?` → NA, strip whitespace, dtype cast), fixed train/test split reused everywhere. Test: row counts + no leakage assertion.
 2. **Baselines** — LightGBM (Optuna, k-fold), AutoGluon on full train. Log ROC-AUC, accuracy, log-loss, Brier, fit+predict wall time.
 3. **TabPFN v2** — run on full-ish train (respect row cap; document how the cap is handled). Same metrics.
-4. **The curve** — subsample train at {200, 500, 1k, 2k, 5k, 10k, 20k, full}, evaluate all three on the *same fixed test set*, repeat over seeds. Produce the size-vs-quality plot with error bands. **This is the money chart.**
+4. **The curve** — subsample train at {200, 500, 1k, 2k, 5k, 10k, full}, evaluate all three on the *same fixed test set*, repeat over seeds. Produce the size-vs-quality plot with error bands. **This is the money chart.**
 5. **Beyond accuracy** — calibration curves + Brier, prediction-time comparison, SHAP for GBDT, permutation importance for TabPFN.
 6. **App** — Streamlit: upload a CSV → run all three → side-by-side metrics, calibration plot, timing, top-feature explanation.
 7. **Write-up** — README with the curve, the "when to use what" table, and explicit limits.

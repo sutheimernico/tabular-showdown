@@ -1,0 +1,33 @@
+{
+  "calibration_shap": {
+    "n_train": 2000,
+    "seed": 0,
+    "n_eval": 4000,
+    "brier": {
+      "tabpfn": 0.10068677918022646,
+      "lgbm": 0.10914172808724922,
+      "logreg": 0.10508429145843419
+    },
+    "lgbm_params_source": "results/lgbm_baseline.json (reused, not re-tuned)"
+  },
+  "permutation_importance": {
+    "n_train": 200,
+    "n_eval": 200,
+    "n_repeats": 3,
+    "seed": 0,
+    "baseline_auc": 0.8854123209567515,
+    "reason_for_smaller_run": "permutation importance needs 1 + n_features * n_repeats predict calls; at n_train=2000 (the calibration size) a single TabPFN predict is ~219s, making the full sweep impractical on CPU"
+  },
+  "timing": {
+    "source": "results/learning_curve.csv",
+    "n_train": 2000,
+    "seed": 0
+  },
+  "versions": {
+    "python": "3.13.13",
+    "tabpfn": "2.0.9",
+    "lightgbm": "4.6.0",
+    "scikit-learn": "1.6.1"
+  },
+  "timestamp": "2026-07-11T07:55:28.953976+00:00"
+}

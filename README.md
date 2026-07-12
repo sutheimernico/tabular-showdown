@@ -20,7 +20,7 @@ This repo benchmarks **TabPFN v2** ([Hollmann et al., *Nature* 2025](https://www
 | | **TabPFN v2** | **LightGBM (tuned)** | **LogReg (untuned)** |
 |---|---|---|---|
 | Best regime here | ≤ ~2,000 rows | ≥ ~5,000 rows | never the best, but a fast floor |
-| Training cost | ~0s (in-context, no gradient training) | Optuna search + fit (~10s–3min depending on size) | ~0s |
+| Training cost | ~0s (in-context, no gradient training) | Optuna search + fit (~1s–3min: 10-trial per-size searches up to ~49s, 30-trial full-train tune ~2.6min) | ~0s |
 | Prediction cost | **slow**: ~29–755s to score 4,000 rows on CPU, growing steeply with training-set size | fast: ~0.02s to score 4,000 rows, regardless of training size | fast: ~0.01–0.02s |
 | Needs tuning? | no (that's the point) | yes (Optuna, ~10–30 trials here) | no (this project never tunes it) |
 | Hard caps | ~10,000-row / ~500-feature pretraining limit (Nature 2025); CPU makes it much slower before that | none inherent; scales with data | none inherent, but ceiling is lower |

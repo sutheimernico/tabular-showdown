@@ -22,7 +22,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from tabular_showdown.curve import compute_seed_spread
+from tabular_showdown.curve import TABPFN_ROW_CAP, compute_seed_spread
 from tabular_showdown.explain import calibration_data
 from tabular_showdown.metrics import classification_metrics
 
@@ -194,6 +194,104 @@ def learning_curve_title(
         f"TabPFN wins the small-data regime; the crossover with tuned LightGBM "
         f"is tied within seed noise, somewhere between {_fmt_n(lower)} and {_fmt_n(upper)} rows"
     )
+
+
+def plot_learning_curve(df: pd.DataFrame, meta: dict) -> Figure:
+    """The project's headline "money chart": ROC-AUC vs. training-set size
+    (log scale), one line per model with markers at measured points, a
+    min-max band across subsample seeds, and a direct end-of-line label per
+    series instead of a separate legend box. The title states the actual
+    finding computed from the data -- honestly noise-aware, see
+    learning_curve_title -- rather than a canned claim.
+
+    df: results/learning_curve.csv, loaded as-is (long format: model,
+    n_train, seed, roc_auc, ...). meta: results/learning_curve_meta.json,
+    loaded as-is -- only meta["n_eval"] is used, for the subtitle.
+    """
+    agg = (
+        df.groupby(["model", "n_train"])["roc_auc"]
+        .agg(mean="mean", lo="min", hi="max")
+        .reset_index()
+        .sort_values("n_train")
+    )
+
+    tabpfn_max_n = int(df.loc[df["model"] == "tabpfn", "n_train"].max())
+    tabpfn_stopped_at_pretrain_cap = tabpfn_max_n == TABPFN_ROW_CAP
+
+    fig, ax = _new_axes(figsize=(10, 6))
+
+    # Direct end-of-line labels are the only series legend here (no separate
+    # legend box -- one identification mechanism per chart, not two). TabPFN's
+    # line tends to end close to LightGBM's rising line, so its label anchors
+    # to the left of its last point instead of the right (like the other two).
+    label_offsets = {"tabpfn": (-16, 10), "lgbm": (8, 0), "logreg": (8, 0)}
+    label_ha = {"tabpfn": "right", "lgbm": "left", "logreg": "left"}
+
+    for model in ["logreg", "lgbm", "tabpfn"]:  # draw order: headline series on top
+        color = MODEL_COLORS[model]
+        series = agg.loc[agg["model"] == model]
+        ax.fill_between(series["n_train"], series["lo"], series["hi"], color=color, alpha=0.15)
+        ax.plot(
+            series["n_train"],
+            series["mean"],
+            color=color,
+            linewidth=2,
+            marker="o",
+            markersize=7,
+        )
+        last = series.iloc[-1]
+        ax.annotate(
+            MODEL_LABELS[model],
+            xy=(last["n_train"], last["mean"]),
+            xytext=label_offsets[model],
+            textcoords="offset points",
+            va="center",
+            ha=label_ha[model],
+            fontsize=10,
+            color=color,
+        )
+
+    ax.set_xscale("log")
+    sizes = sorted(df["n_train"].unique())
+    ax.set_xticks(sizes)
+    ax.set_xticklabels([_fmt_n(n) for n in sizes])
+    ax.minorticks_off()
+
+    ax.set_xlabel("training rows (log scale)", color=INK_MUTED, fontsize=10)
+    ax.set_ylabel("ROC-AUC (frozen eval set)", color=INK_MUTED, fontsize=10)
+
+    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+
+    # Mark where TabPFN's line stops, and say honestly WHY: the pretraining
+    # limit is a real model cap, but a shorter stop here is the CPU compute
+    # valve (a point exceeded the per-point time budget), not a quality ceiling.
+    if tabpfn_stopped_at_pretrain_cap:
+        cap_caption = "TabPFN v2 pretraining cap "
+    else:
+        cap_caption = "TabPFN stops here: >8 min/point on CPU "
+    ax.axvline(tabpfn_max_n, color=INK_MUTED, linewidth=1, linestyle=(0, (2, 3)))
+    # Anchor left of the line, in the empty bottom-left region.
+    ax.text(
+        tabpfn_max_n,
+        ax.get_ylim()[0] + 0.015,
+        cap_caption,
+        color=INK_MUTED,
+        fontsize=8.5,
+        va="bottom",
+        ha="right",
+    )
+
+    # Leave room on the right for the direct end-of-line labels.
+    ax.set_xlim(right=ax.get_xlim()[1] * 1.6)
+
+    _title_and_subtitle(
+        ax,
+        learning_curve_title(df, tabpfn_stopped_at_pretrain_cap),
+        f"Adult census income · frozen {meta['n_eval']:,}-row eval set · "
+        "bands = min–max over subsample seeds",
+    )
+    return fig
 
 
 def plot_calibration(

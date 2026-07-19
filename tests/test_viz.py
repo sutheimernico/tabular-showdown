@@ -23,6 +23,7 @@ from tabular_showdown.models import fit_lgbm
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 LGBM_BASELINE_PATH = Path(__file__).resolve().parent.parent / "results" / "lgbm_baseline.json"
 CURVE_CSV_PATH = Path(__file__).resolve().parent.parent / "results" / "learning_curve.csv"
+CURVE_META_PATH = Path(__file__).resolve().parent.parent / "results" / "learning_curve_meta.json"
 
 
 @pytest.fixture(scope="module")
@@ -194,6 +195,27 @@ def test_learning_curve_title_never_catches_up_when_tabpfn_always_ahead():
     title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=True)
     assert "never" in title.lower()
     assert "pretraining cap" in title.lower()
+
+
+# --- plot_learning_curve (absorbed from scripts/plot_curve.py) --------------
+
+
+def test_plot_learning_curve_returns_figure_with_one_line_per_model():
+    df = pd.read_csv(CURVE_CSV_PATH)
+    meta = json.loads(CURVE_META_PATH.read_text())
+    fig = viz.plot_learning_curve(df, meta)
+    assert isinstance(fig, Figure)
+    ax = fig.axes[0]
+    assert len(ax.lines) == 4  # tabpfn, lgbm, logreg series + 1 axvline (tabpfn cutoff marker)
+    assert ax.get_xscale() == "log"
+
+
+def test_plot_learning_curve_title_is_on_the_axes():
+    df = pd.read_csv(CURVE_CSV_PATH)
+    meta = json.loads(CURVE_META_PATH.read_text())
+    fig = viz.plot_learning_curve(df, meta)
+    title = fig.axes[0].get_title(loc="left")
+    assert title == viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
 
 
 # --- metrics_table ------------------------------------------------------

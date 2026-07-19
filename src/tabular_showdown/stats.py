@@ -91,6 +91,15 @@ def paired_seed_comparison(
     here. wilcoxon_p is reported alongside as the field's non-parametric
     standard check, but does not itself drive verdict -- see the module
     docstring for why (the floor problem at low seed counts).
+
+    Wilcoxon uses zero_method="pratt", not scipy's default "wilcox": "wilcox"
+    silently discards zero-difference pairs *before* ranking whenever some
+    (but not all) seeds tie exactly, shrinking the effective sample size
+    below n_pairs -- so wilcoxon_floor_note's floor, computed from n_pairs,
+    would be optimistic (the *real* achievable floor at the smaller effective
+    n is higher/worse than that). "pratt" keeps zero pairs in the ranking
+    (only dropping their contribution to the final statistic afterward), so
+    the floor computed from n_pairs stays honest.
     """
     if len(a) != len(b):
         raise ValueError(
@@ -118,7 +127,7 @@ def paired_seed_comparison(
             # separation, i.e. infinitely significant by the t-test's own
             # logic. Wilcoxon still has ranks to work with here (no zeros).
             t_stat, t_p = math.copysign(math.inf, mean_diff), 0.0
-            wilcoxon_p = float(scipy_stats.wilcoxon(diffs).pvalue)
+            wilcoxon_p = float(scipy_stats.wilcoxon(diffs, zero_method="pratt").pvalue)
     else:
         se = sd / math.sqrt(n)
         t_crit = float(scipy_stats.t.ppf(0.975, n - 1))
@@ -126,7 +135,7 @@ def paired_seed_comparison(
         ci_high = mean_diff + t_crit * se
         t_result = scipy_stats.ttest_1samp(diffs, popmean=0.0)
         t_stat, t_p = float(t_result.statistic), float(t_result.pvalue)
-        wilcoxon_p = float(scipy_stats.wilcoxon(diffs).pvalue)
+        wilcoxon_p = float(scipy_stats.wilcoxon(diffs, zero_method="pratt").pvalue)
 
     if ci_low > 0:
         verdict = "b_wins"

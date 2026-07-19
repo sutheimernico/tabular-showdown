@@ -59,6 +59,28 @@ def test_paired_seed_comparison_wilcoxon_p_matches_scipy_on_the_diffs():
     assert result.wilcoxon_p == pytest.approx(expected_p)
 
 
+def test_paired_seed_comparison_mixed_zero_and_nonzero_diffs_uses_pratt():
+    """scipy's default zero_method='wilcox' silently drops zero-difference
+    pairs before ranking, shrinking the effective n below n_pairs -- pratt
+    keeps them in the ranking instead, so wilcoxon_floor_note's floor (which
+    is computed from n_pairs) stays honest. Two of six diffs here are exactly
+    0; pratt and the default disagree on this data, so this also guards
+    against silently reverting to scipy's default.
+    """
+    a = [0.85, 0.85, 0.85, 0.85, 0.85, 0.85]
+    b = [0.85, 0.86, 0.845, 0.87, 0.85, 0.84]
+    result = paired_seed_comparison(a, b)
+
+    diffs = np.array(b) - np.array(a)
+    expected_pratt = scipy_stats.wilcoxon(diffs, zero_method="pratt").pvalue
+    default_wilcox = scipy_stats.wilcoxon(diffs, zero_method="wilcox").pvalue
+    # sanity: this data actually distinguishes pratt from the default
+    assert not math.isclose(expected_pratt, default_wilcox)
+
+    assert result.wilcoxon_p == pytest.approx(expected_pratt)
+    assert result.wilcoxon_p != pytest.approx(default_wilcox)
+
+
 def test_paired_seed_comparison_default_model_labels_and_to_dict():
     result = paired_seed_comparison([0.5, 0.5, 0.5], [0.51, 0.52, 0.53])
     assert result.model_a == "a"

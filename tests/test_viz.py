@@ -144,6 +144,22 @@ def test_plot_permutation_importance_returns_figure():
 # --- learning_curve_title (REVIEW.md B-1: noise-aware crossover wording) ----
 
 
+def test_learning_curve_title_raises_when_no_lgbm_rows():
+    """Guard added alongside the B1 review: with zero lgbm rows, lgbm_sizes
+    would be empty and max(lgbm_sizes) would raise an opaque ValueError deep
+    inside the function -- assert the clear, early guard message instead."""
+    df = pd.DataFrame(
+        {
+            "model": ["tabpfn", "tabpfn"],
+            "n_train": [1000, 1000],
+            "seed": [0, 1],
+            "roc_auc": [0.90, 0.91],
+        }
+    )
+    with pytest.raises(ValueError, match="lgbm"):
+        viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
+
+
 def test_learning_curve_title_on_real_csv_is_a_range_not_a_point_crossover():
     """At n=5000 the lgbm-vs-tabpfn mean gap (~0.0015) is far smaller than
     lgbm's own seed spread (~0.0093) and the two seeds disagree in sign

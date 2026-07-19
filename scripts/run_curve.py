@@ -188,8 +188,15 @@ def main() -> None:
             "by_size": compute_seed_spread(df, metric="roc_auc"),
         },
         "paired_comparison": {
-            n: result.to_dict()
-            for n, result in paired_from_curve(df, "tabpfn", "lgbm", metric="roc_auc").items()
+            "metric": "roc_auc",
+            "note": "per n_train, paired tabpfn-vs-lgbm seed comparison (mean diff, "
+            "95% CI, paired t-test, Wilcoxon signed-rank) -- see "
+            "tabular_showdown.stats and REVIEW.md B-1: verdict is 'tie' unless "
+            "the CI excludes 0; only sizes with >=2 shared seeds are included",
+            "by_size": {
+                n: result.to_dict()
+                for n, result in paired_from_curve(df, "tabpfn", "lgbm", metric="roc_auc").items()
+            },
         },
         "versions": {
             "python": platform.python_version(),

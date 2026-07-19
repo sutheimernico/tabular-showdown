@@ -291,6 +291,44 @@ def rows_to_dataframe(rows: Iterable[dict]) -> pd.DataFrame:
     return pd.DataFrame(list(rows), columns=CSV_COLUMNS)
 
 
+def compute_seed_spread(
+    df: pd.DataFrame, metric: str = "roc_auc"
+) -> dict[str, dict[str, dict[str, float | int]]]:
+    """Per (n_train, model) spread of `metric` across seeds: mean/std/min/max/n_seeds.
+
+    Pure aggregation over a learning_curve.csv-shaped DataFrame (columns
+    model, n_train, seed, <metric>, ...) -- no model training involved, so
+    it's cheap to call from tests and from the meta-JSON writer alike.
+    Generic over however many seeds a size actually has: this reads seed
+    counts off the data itself rather than SEEDS_BY_SIZE, so it keeps working
+    unchanged once WP-B1.3 appends more seeds at n_train=5000.
+
+    Population std (ddof=0) so a single-seed size reports std=0.0 rather
+    than NaN (JSON has no NaN literal). Keys are strings (str(n_train)) so
+    the result serializes straight into learning_curve_meta.json, matching
+    that file's existing seeds_by_size convention. A model missing at a
+    given size (e.g. TabPFN above its row cap) is simply absent from that
+    size's dict -- never a crash, never a fabricated zero.
+    """
+    out: dict[str, dict[str, dict[str, float | int]]] = {}
+    agg = df.groupby(["n_train", "model"])[metric].agg(
+        mean="mean",
+        std=lambda s: float(s.std(ddof=0)),
+        min="min",
+        max="max",
+        n_seeds="count",
+    )
+    for (n_train, model), row in agg.iterrows():
+        out.setdefault(str(int(n_train)), {})[model] = {
+            "mean": float(row["mean"]),
+            "std": float(row["std"]),
+            "min": float(row["min"]),
+            "max": float(row["max"]),
+            "n_seeds": int(row["n_seeds"]),
+        }
+    return out
+
+
 def run_curve(
     X_train: pd.DataFrame,
     y_train: pd.Series,

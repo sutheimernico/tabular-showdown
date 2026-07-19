@@ -22,6 +22,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+from tabular_showdown.curve import compute_seed_spread
 from tabular_showdown.explain import calibration_data
 from tabular_showdown.metrics import classification_metrics
 
@@ -73,6 +74,126 @@ def _title_and_subtitle(ax: Axes, title: str, subtitle: str | None) -> None:
             fontsize=9.5,
             va="bottom",
         )
+
+
+def _fmt_n(n: int) -> str:
+    """Compact size label for axis ticks and title wording: 200, 2k, 1.5k."""
+    if n < 1000:
+        return str(n)
+    if n % 1000 == 0:
+        return f"{n // 1000}k"
+    return f"{n / 1000:.1f}k"
+
+
+def _seed_pairs(
+    df: pd.DataFrame, n_train: int, model_a: str, model_b: str, metric: str
+) -> list[tuple[float, float]]:
+    """(model_a, model_b) metric values for every seed both models share at this size.
+
+    A seed run for only one of the two models at this size can't be paired,
+    so it's dropped -- it can't speak to sign consistency either way.
+    """
+    sub = df.loc[df["n_train"] == n_train]
+    a = sub.loc[sub["model"] == model_a].set_index("seed")[metric]
+    b = sub.loc[sub["model"] == model_b].set_index("seed")[metric]
+    common = a.index.intersection(b.index)
+    return [(float(a.loc[s]), float(b.loc[s])) for s in common]
+
+
+def _sign_consistent(pairs: list[tuple[float, float]]) -> bool:
+    """True if every (a, b) pair agrees on the sign of b - a.
+
+    Vacuously true with 0 or 1 pairs -- there's nothing to disagree with.
+    """
+    signs = {(b > a) - (b < a) for a, b in pairs}
+    return len(signs) <= 1
+
+
+def learning_curve_title(
+    df: pd.DataFrame, tabpfn_stopped_at_pretrain_cap: bool, metric: str = "roc_auc"
+) -> str:
+    """Derive the money-chart headline honestly (REVIEW.md B-1/B-3).
+
+    Asserts a POINT crossover ("overtakes ... by ~Nk rows") only for a size
+    where both models were measured, LightGBM's mean lead over TabPFN there
+    exceeds *both* models' own seed spread (max - min across seeds) at that
+    size, and every seed shared by both models agrees on the direction. This
+    is what keeps a noisy single-size flip (e.g. 2 seeds disagreeing in
+    sign) from being reported as a clean crossover.
+
+    Otherwise falls back to a range phrase bracketing the noisy crossover
+    zone -- both endpoints computed from the data, never hardcoded: the last
+    size where TabPFN leads with consistent seed sign, and the first later
+    size (any model measured there) that is no longer a confirmed TabPFN
+    win. If LightGBM's mean never even reaches TabPFN's anywhere measured,
+    says so plainly instead of inventing a crossover at all.
+
+    Generic over however many seeds each size has -- works unchanged if
+    WP-B1.3 appends more seeds at n_train=5000 later.
+    """
+    spread = compute_seed_spread(df, metric=metric)
+    both_sizes = sorted(
+        int(n) for n, models in spread.items() if "tabpfn" in models and "lgbm" in models
+    )
+    lgbm_sizes = sorted(int(n) for n, models in spread.items() if "lgbm" in models)
+
+    def tabpfn_cleanly_ahead(n: int) -> bool:
+        """True only if every seed shared by both models at this size agrees TabPFN leads."""
+        models = spread[str(n)]
+        if "tabpfn" not in models or "lgbm" not in models:
+            return False
+        pairs = _seed_pairs(df, n, "tabpfn", "lgbm", metric)
+        if not pairs or not _sign_consistent(pairs):
+            return False
+        return all(tabpfn_v > lgbm_v for tabpfn_v, lgbm_v in pairs)
+
+    # 1) a clean, noise-beating point crossover?
+    for n in both_sizes:
+        models = spread[str(n)]
+        mean_gap = models["lgbm"]["mean"] - models["tabpfn"]["mean"]
+        max_seed_spread = max(
+            models["lgbm"]["max"] - models["lgbm"]["min"],
+            models["tabpfn"]["max"] - models["tabpfn"]["min"],
+        )
+        pairs = _seed_pairs(df, n, "tabpfn", "lgbm", metric)
+        lgbm_cleanly_ahead = (
+            bool(pairs)
+            and mean_gap > max_seed_spread
+            and _sign_consistent(pairs)
+            and all(lgbm_v > tabpfn_v for tabpfn_v, lgbm_v in pairs)
+        )
+        if lgbm_cleanly_ahead:
+            return (
+                f"TabPFN wins the small-data regime; tuned LightGBM overtakes it "
+                f"by ~{_fmt_n(n)} rows"
+            )
+
+    # 2) never, anywhere measured, does LightGBM's mean even reach TabPFN's?
+    lgbm_ever_leads_in_mean = any(
+        spread[str(n)]["lgbm"]["mean"] >= spread[str(n)]["tabpfn"]["mean"] for n in both_sizes
+    )
+    if not lgbm_ever_leads_in_mean:
+        last_n = max(both_sizes) if both_sizes else max(lgbm_sizes)
+        if tabpfn_stopped_at_pretrain_cap:
+            return (
+                f"TabPFN wins the small-data regime and never lets tuned LightGBM "
+                f"catch up, right up to its {_fmt_n(last_n)}-row pretraining cap"
+            )
+        return (
+            f"TabPFN wins the small-data regime; tuned LightGBM never catches up "
+            f"through {_fmt_n(last_n)} rows (the largest we ran TabPFN on CPU)"
+        )
+
+    # 3) tied within noise: bracket the crossover zone from measured data only.
+    tabpfn_consistent_sizes = [n for n in both_sizes if tabpfn_cleanly_ahead(n)]
+    lower = max(tabpfn_consistent_sizes) if tabpfn_consistent_sizes else min(both_sizes)
+    upper_candidates = [n for n in lgbm_sizes if n > lower and not tabpfn_cleanly_ahead(n)]
+    upper = min(upper_candidates) if upper_candidates else max(lgbm_sizes)
+
+    return (
+        f"TabPFN wins the small-data regime; the crossover with tuned LightGBM "
+        f"is tied within seed noise, somewhere between {_fmt_n(lower)} and {_fmt_n(upper)} rows"
+    )
 
 
 def plot_calibration(

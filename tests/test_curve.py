@@ -9,6 +9,9 @@ of the unit tests since predicting on the real 4,000-row eval set is the
 expensive part, reserved for scripts/run_curve.py.
 """
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -16,6 +19,7 @@ import pytest
 from tabular_showdown.curve import (
     CSV_COLUMNS,
     SEEDS_BY_SIZE,
+    compute_seed_spread,
     fit_predict_lgbm_tuned,
     fit_predict_logreg,
     fit_predict_tabpfn,
@@ -24,6 +28,8 @@ from tabular_showdown.curve import (
     subsample_train,
 )
 from tabular_showdown.data import CATEGORICAL_COLUMNS, NUMERIC_COLUMNS
+
+REAL_CURVE_CSV_PATH = Path(__file__).resolve().parent.parent / "results" / "learning_curve.csv"
 
 
 def _make_synthetic(n: int, seed: int = 0) -> tuple[pd.DataFrame, pd.Series]:
@@ -246,3 +252,74 @@ def test_seeds_by_size_matches_design_spec():
     assert SEEDS_BY_SIZE[2000] == [0, 1, 2]
     assert SEEDS_BY_SIZE[5000] == [0, 1]
     assert SEEDS_BY_SIZE[10000] == [0]
+
+
+# --- compute_seed_spread ----------------------------------------------------
+
+
+def test_compute_seed_spread_basic_stats():
+    df = pd.DataFrame(
+        {
+            "model": ["lgbm", "lgbm", "lgbm", "tabpfn", "tabpfn"],
+            "n_train": [200, 200, 200, 200, 200],
+            "seed": [0, 1, 2, 0, 1],
+            "roc_auc": [0.80, 0.82, 0.78, 0.90, 0.92],
+        }
+    )
+    spread = compute_seed_spread(df)
+    lgbm = spread["200"]["lgbm"]
+    assert lgbm["n_seeds"] == 3
+    assert lgbm["min"] == pytest.approx(0.78)
+    assert lgbm["max"] == pytest.approx(0.82)
+    assert lgbm["mean"] == pytest.approx(0.80)
+    expected_std = float(np.std([0.80, 0.82, 0.78]))  # population std (ddof=0), not sample std
+    assert lgbm["std"] == pytest.approx(expected_std)
+
+    tabpfn = spread["200"]["tabpfn"]
+    assert tabpfn["n_seeds"] == 2
+
+
+def test_compute_seed_spread_single_seed_size_has_zero_std_not_nan():
+    df = pd.DataFrame({"model": ["lgbm"], "n_train": [10000], "seed": [0], "roc_auc": [0.92]})
+    spread = compute_seed_spread(df)
+    point = spread["10000"]["lgbm"]
+    assert point["n_seeds"] == 1
+    assert point["std"] == 0.0
+    assert point["min"] == point["max"] == point["mean"] == pytest.approx(0.92)
+
+
+def test_compute_seed_spread_is_json_serializable():
+    df = pd.DataFrame(
+        {"model": ["lgbm", "tabpfn"], "n_train": [200, 200], "seed": [0, 0], "roc_auc": [0.8, 0.9]}
+    )
+    spread = compute_seed_spread(df)
+    json.dumps(spread)  # must not raise -- keys are strings, values are plain floats/ints
+
+
+def test_compute_seed_spread_on_real_curve_csv_matches_review_b1_numbers():
+    """Anchors against REVIEW.md B-1's hand-recomputed lgbm@5000 numbers:
+    mean gap ~0.0015 vs tabpfn, lgbm's own seed spread ~0.0093."""
+    df = pd.read_csv(REAL_CURVE_CSV_PATH)
+    spread = compute_seed_spread(df)
+
+    lgbm_5k = spread["5000"]["lgbm"]
+    assert lgbm_5k["n_seeds"] == 2
+    assert lgbm_5k["mean"] == pytest.approx(0.91524, abs=1e-4)
+    assert lgbm_5k["min"] == pytest.approx(0.910595, abs=1e-5)
+    assert lgbm_5k["max"] == pytest.approx(0.919883, abs=1e-5)
+    assert (lgbm_5k["max"] - lgbm_5k["min"]) == pytest.approx(0.0093, abs=1e-4)
+
+    tabpfn_5k = spread["5000"]["tabpfn"]
+    mean_gap = lgbm_5k["mean"] - tabpfn_5k["mean"]
+    assert mean_gap == pytest.approx(0.0015, abs=1e-4)
+
+
+def test_compute_seed_spread_missing_model_at_size_is_absent_not_crashed():
+    """TabPFN has no rows above n=5000 in the real CSV (compute valve) -- it
+    must simply be absent from that size's dict, not a crash or a fake 0."""
+    df = pd.read_csv(REAL_CURVE_CSV_PATH)
+    spread = compute_seed_spread(df)
+    assert "tabpfn" not in spread["10000"]
+    assert "lgbm" in spread["10000"]
+    assert spread["10000"]["lgbm"]["n_seeds"] == 1
+    assert spread["10000"]["lgbm"]["std"] == 0.0

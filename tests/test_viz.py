@@ -140,6 +140,62 @@ def test_plot_permutation_importance_returns_figure():
     assert "a" in fig.axes[0].get_title(loc="left")  # most important feature named in the title
 
 
+# --- learning_curve_title (REVIEW.md B-1: noise-aware crossover wording) ----
+
+
+def test_learning_curve_title_on_real_csv_is_a_range_not_a_point_crossover():
+    """At n=5000 the lgbm-vs-tabpfn mean gap (~0.0015) is far smaller than
+    lgbm's own seed spread (~0.0093) and the two seeds disagree in sign
+    (REVIEW.md B-1) -- the title must not assert a point crossover there."""
+    df = pd.read_csv(CURVE_CSV_PATH)
+    title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
+    assert "~5,000" not in title
+    assert "~5k" not in title
+    assert "noise" in title.lower() or "tied" in title.lower()
+
+
+def test_learning_curve_title_range_bounds_come_from_the_data_on_real_csv():
+    """Bracket must be [last size TabPFN leads with consistent seed sign,
+    first later size that is no longer a confirmed TabPFN win] -- 2k and 5k
+    for the currently committed CSV -- not the hardcoded "2k"/"10k" prose
+    from REVIEW.md itself."""
+    df = pd.read_csv(CURVE_CSV_PATH)
+    title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
+    assert "2k" in title
+    assert "5k" in title
+
+
+def test_learning_curve_title_asserts_point_crossover_when_gap_beats_spread():
+    """Positive control: a clean, seed-consistent gap larger than either
+    model's own seed spread must still produce a point-crossover statement
+    -- the noise guard should not swallow real signal."""
+    df = pd.DataFrame(
+        {
+            "model": ["tabpfn", "tabpfn", "lgbm", "lgbm"],
+            "n_train": [1000, 1000, 1000, 1000],
+            "seed": [0, 1, 0, 1],
+            "roc_auc": [0.80, 0.81, 0.90, 0.91],
+        }
+    )
+    title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
+    assert "overtakes" in title
+    assert "1k" in title
+
+
+def test_learning_curve_title_never_catches_up_when_tabpfn_always_ahead():
+    df = pd.DataFrame(
+        {
+            "model": ["tabpfn", "tabpfn", "lgbm", "lgbm"],
+            "n_train": [1000, 1000, 1000, 1000],
+            "seed": [0, 1, 0, 1],
+            "roc_auc": [0.90, 0.91, 0.80, 0.81],
+        }
+    )
+    title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=True)
+    assert "never" in title.lower()
+    assert "pretraining cap" in title.lower()
+
+
 # --- metrics_table ------------------------------------------------------
 
 

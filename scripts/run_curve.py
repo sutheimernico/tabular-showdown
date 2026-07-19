@@ -38,6 +38,7 @@ from tabular_showdown.curve import (
     SEEDS_BY_SIZE,
     TABPFN_CATEGORICAL_PARAM_SUPPORTED,
     TABPFN_ROW_CAP,
+    compute_seed_spread,
     run_curve,
 )
 from tabular_showdown.data import frozen_eval_set, load_adult, split_features_target
@@ -176,6 +177,13 @@ def main() -> None:
         },
         "logreg": "untuned linear reference: OneHot(ignore unknowns, NaN->'missing') "
         "+ StandardScaler + LogisticRegression(max_iter=1000)",
+        "spread": {
+            "metric": "roc_auc",
+            "note": "per (n_train, model) mean/std/min/max/n_seeds across subsample "
+            "seeds -- see REVIEW.md B-1/B-5: the headline crossover must not claim "
+            "more precision than this spread supports",
+            "by_size": compute_seed_spread(df, metric="roc_auc"),
+        },
         "versions": {
             "python": platform.python_version(),
             "tabpfn": tabpfn.__version__,

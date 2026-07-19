@@ -4,7 +4,9 @@ Sweeps TabPFN v2, freshly-tuned LightGBM, and an untuned linear reference
 (logreg) across training-set sizes, always scoring on the same frozen
 4,000-row eval set. Writes results/learning_curve.csv (long format) and
 results/learning_curve_meta.json (seed policy, TabPFN cap + reason, LightGBM
-tuning policy, package versions, total runtime).
+tuning policy, package versions, total runtime, per-size seed spread, and a
+paired tabpfn-vs-lgbm significance test per size -- see tabular_showdown.stats,
+REVIEW.md B-1).
 
 TabPFN cap: v2's pretraining limit is ~10k rows, so TabPFN never runs above
 10,000 and never on the full train set -- the cap is part of the story, not
@@ -42,6 +44,7 @@ from tabular_showdown.curve import (
     run_curve,
 )
 from tabular_showdown.data import frozen_eval_set, load_adult, split_features_target
+from tabular_showdown.stats import paired_from_curve
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -183,6 +186,10 @@ def main() -> None:
             "seeds -- see REVIEW.md B-1/B-5: the headline crossover must not claim "
             "more precision than this spread supports",
             "by_size": compute_seed_spread(df, metric="roc_auc"),
+        },
+        "paired_comparison": {
+            n: result.to_dict()
+            for n, result in paired_from_curve(df, "tabpfn", "lgbm", metric="roc_auc").items()
         },
         "versions": {
             "python": platform.python_version(),

@@ -25,6 +25,7 @@ from matplotlib.figure import Figure
 from tabular_showdown.curve import TABPFN_ROW_CAP, compute_seed_spread
 from tabular_showdown.explain import calibration_data
 from tabular_showdown.metrics import classification_metrics
+from tabular_showdown.stats import _seed_pairs
 
 MODEL_COLORS = {"tabpfn": "#2a78d6", "lgbm": "#1baf7a", "logreg": "#eda100"}
 MODEL_LABELS = {"tabpfn": "TabPFN v2", "lgbm": "LightGBM (tuned)", "logreg": "LogReg (untuned)"}
@@ -85,21 +86,6 @@ def _fmt_n(n: int) -> str:
     return f"{n / 1000:.1f}k"
 
 
-def _seed_pairs(
-    df: pd.DataFrame, n_train: int, model_a: str, model_b: str, metric: str
-) -> list[tuple[float, float]]:
-    """(model_a, model_b) metric values for every seed both models share at this size.
-
-    A seed run for only one of the two models at this size can't be paired,
-    so it's dropped -- it can't speak to sign consistency either way.
-    """
-    sub = df.loc[df["n_train"] == n_train]
-    a = sub.loc[sub["model"] == model_a].set_index("seed")[metric]
-    b = sub.loc[sub["model"] == model_b].set_index("seed")[metric]
-    common = a.index.intersection(b.index)
-    return [(float(a.loc[s]), float(b.loc[s])) for s in common]
-
-
 def _sign_consistent(pairs: list[tuple[float, float]]) -> bool:
     """True if every (a, b) pair agrees on the sign of b - a.
 
@@ -131,6 +117,9 @@ def learning_curve_title(
     Generic over however many seeds each size has -- works unchanged if
     WP-B1.3 appends more seeds at n_train=5000 later.
     """
+    if not (df["model"] == "lgbm").any():
+        raise ValueError("learning_curve_title requires at least one lgbm row in df")
+
     spread = compute_seed_spread(df, metric=metric)
     both_sizes = sorted(
         int(n) for n, models in spread.items() if "tabpfn" in models and "lgbm" in models
@@ -138,7 +127,12 @@ def learning_curve_title(
     lgbm_sizes = sorted(int(n) for n, models in spread.items() if "lgbm" in models)
 
     def tabpfn_cleanly_ahead(n: int) -> bool:
-        """True only if every seed shared by both models at this size agrees TabPFN leads."""
+        """True only if every seed shared by both models at this size agrees TabPFN leads.
+
+        Sign-only: this checks direction consistency, not magnitude against
+        noise (unlike the mean-gap-vs-seed-spread check in branch 1 below) --
+        a unanimous but tiny lead here still counts as "cleanly ahead".
+        """
         models = spread[str(n)]
         if "tabpfn" not in models or "lgbm" not in models:
             return False

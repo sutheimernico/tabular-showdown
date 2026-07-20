@@ -37,16 +37,20 @@ from tabular_showdown.models import fit_lgbm, predict_proba_positive, tune_lgbm
 TABPFN_ROW_CAP = 10_000
 
 # The curve's sizes and per-size seed counts (design decision, see PLAN.md
-# M3+M4): more seeds at small sizes where subsample variance matters most,
-# fewer as the subsample approaches the full train set.
+# M3+M4, widened per the 2026-07-19 SOTA-upgrade plan Task B4 so the paired
+# stats have power): more seeds at small sizes where subsample variance
+# matters most, fewer as the subsample approaches the full train set.
+# TabPFN never reaches n=10000 regardless of this list: the compute valve
+# reconstructed from persisted timings skips it (5000 already exceeds the
+# 8-minute budget), so the 10000 seeds apply to LGBM/LogReg only.
 CURVE_SIZES = [200, 500, 1000, 2000, 5000, 10000]
 SEEDS_BY_SIZE: dict[int, list[int]] = {
-    200: [0, 1, 2],
-    500: [0, 1, 2],
-    1000: [0, 1, 2],
-    2000: [0, 1, 2],
-    5000: [0, 1],
-    10000: [0],
+    200: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    500: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    1000: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    2000: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    5000: [0, 1, 2, 3, 4],
+    10000: [0, 1, 2, 3, 4],
 }
 FULL_TRAIN_SEED = 0
 

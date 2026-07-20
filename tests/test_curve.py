@@ -245,13 +245,17 @@ def test_rows_to_dataframe_schema():
 
 
 def test_seeds_by_size_matches_design_spec():
-    """Guards against silently drifting from the documented seed policy."""
-    assert SEEDS_BY_SIZE[200] == [0, 1, 2]
-    assert SEEDS_BY_SIZE[500] == [0, 1, 2]
-    assert SEEDS_BY_SIZE[1000] == [0, 1, 2]
-    assert SEEDS_BY_SIZE[2000] == [0, 1, 2]
-    assert SEEDS_BY_SIZE[5000] == [0, 1]
-    assert SEEDS_BY_SIZE[10000] == [0]
+    """Guards against silently drifting from the documented seed policy.
+
+    Policy widened by the 2026-07-19 SOTA-upgrade plan Task B4: 10 seeds up
+    to n=2000, 5 seeds above (TabPFN never reaches 10000 -- compute valve).
+    """
+    assert SEEDS_BY_SIZE[200] == list(range(10))
+    assert SEEDS_BY_SIZE[500] == list(range(10))
+    assert SEEDS_BY_SIZE[1000] == list(range(10))
+    assert SEEDS_BY_SIZE[2000] == list(range(10))
+    assert SEEDS_BY_SIZE[5000] == [0, 1, 2, 3, 4]
+    assert SEEDS_BY_SIZE[10000] == [0, 1, 2, 3, 4]
 
 
 # --- compute_seed_spread ----------------------------------------------------

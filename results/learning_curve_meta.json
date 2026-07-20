@@ -12,29 +12,64 @@
     "200": [
       0,
       1,
-      2
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
     ],
     "500": [
       0,
       1,
-      2
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
     ],
     "1000": [
       0,
       1,
-      2
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
     ],
     "2000": [
       0,
       1,
-      2
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
     ],
     "5000": [
       0,
-      1
+      1,
+      2,
+      3,
+      4
     ],
     "10000": [
-      0
+      0,
+      1,
+      2,
+      3,
+      4
     ]
   },
   "full_train_seed": 0,
@@ -55,6 +90,230 @@
     "fit_s_note": "fit_s includes the Optuna search time where tuning ran fresh"
   },
   "logreg": "untuned linear reference: OneHot(ignore unknowns, NaN->'missing') + StandardScaler + LogisticRegression(max_iter=1000)",
+  "spread": {
+    "metric": "roc_auc",
+    "note": "per (n_train, model) mean/std/min/max/n_seeds across subsample seeds -- see REVIEW.md B-1/B-5: the headline crossover must not claim more precision than this spread supports",
+    "by_size": {
+      "200": {
+        "lgbm": {
+          "mean": 0.7843869967699755,
+          "std": 0.02876652702918446,
+          "min": 0.7470762649486054,
+          "max": 0.8366144493804069,
+          "n_seeds": 10
+        },
+        "logreg": {
+          "mean": 0.8816353103161614,
+          "std": 0.0073939968247617935,
+          "min": 0.8679614475359156,
+          "max": 0.8926152807003871,
+          "n_seeds": 10
+        },
+        "tabpfn": {
+          "mean": 0.8843488946042137,
+          "std": 0.014172580472788522,
+          "min": 0.8500856432771327,
+          "max": 0.8991581153283282,
+          "n_seeds": 10
+        }
+      },
+      "500": {
+        "lgbm": {
+          "mean": 0.8732404506447059,
+          "std": 0.011099567941238158,
+          "min": 0.8579587630651461,
+          "max": 0.890161501225331,
+          "n_seeds": 10
+        },
+        "logreg": {
+          "mean": 0.8895712640393493,
+          "std": 0.004609042181603493,
+          "min": 0.879370275114956,
+          "max": 0.8970029182795141,
+          "n_seeds": 10
+        },
+        "tabpfn": {
+          "mean": 0.8991923380008486,
+          "std": 0.00326249655685003,
+          "min": 0.8937195507408273,
+          "max": 0.9040299967959542,
+          "n_seeds": 10
+        }
+      },
+      "1000": {
+        "lgbm": {
+          "mean": 0.8914583430753644,
+          "std": 0.00734462901269408,
+          "min": 0.8789203231756423,
+          "max": 0.9014078750248964,
+          "n_seeds": 10
+        },
+        "logreg": {
+          "mean": 0.8972812026429049,
+          "std": 0.002730646222956678,
+          "min": 0.8918033581863369,
+          "max": 0.9013559175261302,
+          "n_seeds": 10
+        },
+        "tabpfn": {
+          "mean": 0.9039564769352003,
+          "std": 0.0023233419568675635,
+          "min": 0.9000831319980257,
+          "max": 0.9066749798664692,
+          "n_seeds": 10
+        }
+      },
+      "2000": {
+        "lgbm": {
+          "mean": 0.9057663298088829,
+          "std": 0.004271218891507881,
+          "min": 0.8950236839598542,
+          "max": 0.911267849565722,
+          "n_seeds": 10
+        },
+        "logreg": {
+          "mean": 0.9013158756137478,
+          "std": 0.0021569768711621642,
+          "min": 0.8974171927363418,
+          "max": 0.9047525524121268,
+          "n_seeds": 10
+        },
+        "tabpfn": {
+          "mean": 0.9090509270083738,
+          "std": 0.0022133814521423075,
+          "min": 0.904801738844292,
+          "max": 0.9119919639068574,
+          "n_seeds": 10
+        }
+      },
+      "5000": {
+        "lgbm": {
+          "mean": 0.9113198417028204,
+          "std": 0.005052623958967246,
+          "min": 0.9040729483282672,
+          "max": 0.919882922436114,
+          "n_seeds": 5
+        },
+        "logreg": {
+          "mean": 0.9042136492349258,
+          "std": 0.0009836041667267159,
+          "min": 0.9029572476380988,
+          "max": 0.9058547441526166,
+          "n_seeds": 5
+        },
+        "tabpfn": {
+          "mean": 0.9126900302219451,
+          "std": 0.0015441133879372409,
+          "min": 0.9103277652213824,
+          "max": 0.9142614674529568,
+          "n_seeds": 5
+        }
+      },
+      "10000": {
+        "lgbm": {
+          "mean": 0.9212100901462603,
+          "std": 0.0029646326481094164,
+          "min": 0.9163144814208644,
+          "max": 0.9256704682236596,
+          "n_seeds": 5
+        },
+        "logreg": {
+          "mean": 0.905434581179262,
+          "std": 0.0005036594596980399,
+          "min": 0.9045270568674824,
+          "max": 0.9059635085167002,
+          "n_seeds": 5
+        }
+      },
+      "32561": {
+        "lgbm": {
+          "mean": 0.9303594592956296,
+          "std": 0.0,
+          "min": 0.9303594592956296,
+          "max": 0.9303594592956296,
+          "n_seeds": 1
+        },
+        "logreg": {
+          "mean": 0.9070837121900952,
+          "std": 0.0,
+          "min": 0.9070837121900952,
+          "max": 0.9070837121900952,
+          "n_seeds": 1
+        }
+      }
+    }
+  },
+  "paired_comparison": {
+    "metric": "roc_auc",
+    "note": "per n_train, paired tabpfn-vs-lgbm seed comparison (mean diff, 95% CI, paired t-test, Wilcoxon signed-rank) -- see tabular_showdown.stats and REVIEW.md B-1: verdict is 'tie' unless the CI excludes 0; only sizes with >=2 shared seeds are included",
+    "by_size": {
+      "200": {
+        "n_pairs": 10,
+        "mean_diff": -0.09996189783423823,
+        "ci95_low": -0.12045038326062764,
+        "ci95_high": -0.07947341240784882,
+        "t_stat": -11.03690773068891,
+        "t_p": 1.5650830811958224e-06,
+        "wilcoxon_p": 0.001953125,
+        "verdict": "a_wins",
+        "model_a": "tabpfn",
+        "model_b": "lgbm",
+        "wilcoxon_floor_note": null
+      },
+      "500": {
+        "n_pairs": 10,
+        "mean_diff": -0.025951887356142657,
+        "ci95_low": -0.03412554237321501,
+        "ci95_high": -0.017778232339070305,
+        "t_stat": -7.182496416622448,
+        "t_p": 5.1804201523641843e-05,
+        "wilcoxon_p": 0.001953125,
+        "verdict": "a_wins",
+        "model_a": "tabpfn",
+        "model_b": "lgbm",
+        "wilcoxon_floor_note": null
+      },
+      "1000": {
+        "n_pairs": 10,
+        "mean_diff": -0.012498133859835947,
+        "ci95_low": -0.018004239633847133,
+        "ci95_high": -0.0069920280858247605,
+        "t_stat": -5.134798384383748,
+        "t_p": 0.0006155887347200591,
+        "wilcoxon_p": 0.001953125,
+        "verdict": "a_wins",
+        "model_a": "tabpfn",
+        "model_b": "lgbm",
+        "wilcoxon_floor_note": null
+      },
+      "2000": {
+        "n_pairs": 10,
+        "mean_diff": -0.003284597199490791,
+        "ci95_low": -0.005298396446639332,
+        "ci95_high": -0.00127079795234225,
+        "t_stat": -3.689680136814028,
+        "t_p": 0.004999862493981324,
+        "wilcoxon_p": 0.001953125,
+        "verdict": "a_wins",
+        "model_a": "tabpfn",
+        "model_b": "lgbm",
+        "wilcoxon_floor_note": null
+      },
+      "5000": {
+        "n_pairs": 5,
+        "mean_diff": -0.0013701885191247376,
+        "ci95_low": -0.007216612859911026,
+        "ci95_high": 0.004476235821661551,
+        "t_stat": -0.6506974152701436,
+        "t_p": 0.5507281985930578,
+        "wilcoxon_p": 0.625,
+        "verdict": "tie",
+        "model_a": "tabpfn",
+        "model_b": "lgbm",
+        "wilcoxon_floor_note": "n_pairs=5: Wilcoxon signed-rank's minimum two-sided p-value is 0.0625 here, so it cannot reach the conventional 0.05 threshold even for a perfectly consistent effect -- the verdict is carried by the CI-based tie rule above, not by wilcoxon_p."
+      }
+    }
+  },
   "versions": {
     "python": "3.13.13",
     "tabpfn": "2.0.9",
@@ -63,9 +322,9 @@
     "optuna": "4.9.0",
     "scikit-learn": "1.6.1"
   },
-  "total_runtime_seconds": 2938.391577262002,
+  "total_runtime_seconds": 10424.134173731,
   "runtime_note": "total_runtime_seconds is this invocation's wall time; the CSV was built incrementally and may span multiple resumed invocations",
-  "n_points": 46,
-  "resumed_from_existing_csv": false,
-  "timestamp": "2026-07-11T01:54:08.813172+00:00"
+  "n_points": 147,
+  "resumed_from_existing_csv": true,
+  "timestamp": "2026-07-20T12:00:15.139344+00:00"
 }

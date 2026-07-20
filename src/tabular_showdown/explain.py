@@ -20,6 +20,8 @@ import pandas as pd
 import shap
 from sklearn.metrics import roc_auc_score
 
+from tabular_showdown.models import fit_lgbm, predict_proba_positive, tune_lgbm
+
 
 def calibration_data(y_true, proba, n_bins: int = 10) -> dict:
     """Bin predictions into n_bins equal-width bins over [0, 1].
@@ -88,6 +90,50 @@ def shap_values_lgbm(model, X_sample: pd.DataFrame, sample_size: int = 500, seed
         "feature_names": list(X_used.columns),
         "X": X_used,
     }
+
+
+def tuned_lgbm_for_calibration(
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_eval: pd.DataFrame,
+    *,
+    n_trials: int,
+    n_folds: int,
+    seed: int,
+) -> dict:
+    """Fresh, honestly per-size-tuned LightGBM for the calibration/SHAP figures.
+
+    REVIEW.md B-2: scripts/make_figures.py used to refit results/lgbm_baseline
+    .json's FULL-TRAIN-tuned params (32,561 rows, 30 Optuna trials) on the
+    much smaller calibration subsample -- "a knowingly mis-tuned
+    configuration", while TabPFN and LogReg in the same figure are both in
+    their honest per-size configuration. curve.run_curve does the right thing
+    at every point on the learning-size curve (a fresh tune_lgbm search per
+    (size, seed)) but never persists the winning params -- curve._to_row only
+    keeps the metric columns, discarding FitPredictResult.meta -- so there is
+    nothing to load for a given n_train from any committed artifact.
+
+    The honest fix: re-run the identical recipe curve.py uses at each size,
+    on this exact subsample. tune_lgbm seeds its Optuna TPE sampler and its
+    StratifiedKFold split with the same `seed` (see
+    tabular_showdown.models.tune_lgbm), so calling it here with the SAME
+    subsample and seed a caller would pass to curve.run_curve for that
+    (n_train, seed) point reproduces that point's search.
+
+    Returns {"model": the fitted LGBMClassifier, "proba": its predicted
+    probabilities on X_eval, "params": the winning hyperparameters, "params_
+    source": a human-readable provenance string for figures_meta.json}.
+    """
+    params = tune_lgbm(X_train, y_train, n_trials=n_trials, n_folds=n_folds, seed=seed)
+    model = fit_lgbm(X_train, y_train, params)
+    proba = predict_proba_positive(model, X_eval)
+    params_source = (
+        f"curve:n={len(X_train)}:seed={seed} (fresh {n_trials}-trial/{n_folds}-fold "
+        "Optuna re-tune inside make_figures.py, matching curve.py's per-size "
+        "recipe -- per-size tuned params are not persisted by run_curve, "
+        "see REVIEW.md B-2)"
+    )
+    return {"model": model, "proba": proba, "params": params, "params_source": params_source}
 
 
 def permutation_importance_tabpfn(

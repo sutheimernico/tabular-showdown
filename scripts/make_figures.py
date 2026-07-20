@@ -16,9 +16,16 @@ single TabPFN predict call's cost sets the budget:
   apples-to-apples comparison. 2000 is the largest size where TabPFN's
   single predict on the full 4,000-row frozen eval set stays a few minutes
   on CPU (measured ~219s -- see results/learning_curve.csv, n_train=2000,
-  seed=0). LightGBM reuses the 30-trial tuned params from
-  results/lgbm_baseline.json (no re-tuning); logreg is the same untuned
-  linear reference used everywhere else in this project.
+  seed=0). LightGBM is tuned FRESH at this size (REVIEW.md B-2: this figure
+  used to reuse results/lgbm_baseline.json's full-train-tuned params, "a
+  knowingly mis-tuned configuration" -- TabPFN and logreg were already
+  honest per-size configs, LightGBM was not). curve.run_curve tunes fresh
+  at every size on the learning-size curve too, but never persists the
+  winning params, so there is nothing to load for n_train=2000 from any
+  committed artifact -- explain.tuned_lgbm_for_calibration re-runs the same
+  recipe (10-trial, 3-fold Optuna search, matching scripts/run_curve.py's
+  LGBM_N_TRIALS/LGBM_N_FOLDS) on this exact subsample instead. logreg is the
+  same untuned linear reference used everywhere else in this project.
 - TabPFN permutation importance: a SEPARATE, smaller run at n_train=200 with
   a 200-row eval subsample and n_repeats=3. Permutation importance needs
   1 + n_features * n_repeats predict calls (43 for Adult's 14 features) --
@@ -56,18 +63,21 @@ from tabular_showdown.curve import (
 )
 from tabular_showdown.data import frozen_eval_set, load_adult, split_features_target
 from tabular_showdown.metrics import classification_metrics
-from tabular_showdown.models import fit_lgbm, predict_proba_positive
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 RESULTS_DIR = ROOT / "results"
 FIGURES_DIR = RESULTS_DIR / "figures"
 CURVE_CSV_PATH = RESULTS_DIR / "learning_curve.csv"
-LGBM_BASELINE_PATH = RESULTS_DIR / "lgbm_baseline.json"
 META_PATH = FIGURES_DIR / "figures_meta.json"
 
 CALIBRATION_N_TRAIN = 2000
 CALIBRATION_SEED = 0
+# Matches scripts/run_curve.py's LGBM_N_TRIALS/LGBM_N_FOLDS (and
+# curve.fit_predict_lgbm_tuned's own defaults) -- the per-size tuning recipe
+# this figure must match to be an honest comparison (REVIEW.md B-2).
+CALIBRATION_LGBM_N_TRIALS = 10
+CALIBRATION_LGBM_N_FOLDS = 3
 
 PERMUTATION_N_TRAIN = 200
 PERMUTATION_N_EVAL = 200
@@ -114,14 +124,25 @@ def main() -> None:
     X_train, y_train = split_features_target(train_df)
     X_eval, y_eval = split_features_target(eval_df)
 
-    lgbm_params = json.loads(LGBM_BASELINE_PATH.read_text())["params"]
-
     # --- calibration + SHAP: all three models fit fresh at CALIBRATION_N_TRAIN ---
     print(f"fitting calibration/SHAP models at n_train={CALIBRATION_N_TRAIN} ...")
     X_sub, y_sub = subsample_train(X_train, y_train, n=CALIBRATION_N_TRAIN, seed=CALIBRATION_SEED)
 
-    lgbm_model = fit_lgbm(X_sub, y_sub, lgbm_params)
-    lgbm_proba = predict_proba_positive(lgbm_model, X_eval)
+    print(
+        f"tuning LightGBM fresh at n_train={CALIBRATION_N_TRAIN} "
+        f"({CALIBRATION_LGBM_N_TRIALS} Optuna trials, {CALIBRATION_LGBM_N_FOLDS}-fold CV, "
+        "the same per-size recipe curve.py uses -- REVIEW.md B-2) ..."
+    )
+    lgbm_result = explain.tuned_lgbm_for_calibration(
+        X_sub,
+        y_sub,
+        X_eval,
+        n_trials=CALIBRATION_LGBM_N_TRIALS,
+        n_folds=CALIBRATION_LGBM_N_FOLDS,
+        seed=CALIBRATION_SEED,
+    )
+    lgbm_model = lgbm_result["model"]
+    lgbm_proba = lgbm_result["proba"]
 
     logreg_result = fit_predict_logreg(X_sub, y_sub, X_eval, seed=CALIBRATION_SEED)
 
@@ -137,7 +158,9 @@ def main() -> None:
         "lgbm": (y_eval, lgbm_proba),
         "logreg": (y_eval, logreg_result.proba),
     }
-    briers = {m: classification_metrics(y, p)["brier"] for m, (y, p) in curves.items()}
+    curve_metrics = {m: classification_metrics(y, p) for m, (y, p) in curves.items()}
+    briers = {m: metrics["brier"] for m, metrics in curve_metrics.items()}
+    log_losses = {m: metrics["log_loss"] for m, metrics in curve_metrics.items()}
 
     fig = viz.plot_calibration(curves, n_train=CALIBRATION_N_TRAIN, n_eval=len(X_eval))
     _save(fig, "calibration")
@@ -191,7 +214,9 @@ def main() -> None:
             "seed": CALIBRATION_SEED,
             "n_eval": len(X_eval),
             "brier": briers,
-            "lgbm_params_source": "results/lgbm_baseline.json (reused, not re-tuned)",
+            "log_loss": log_losses,
+            "lgbm_params_source": lgbm_result["params_source"],
+            "lgbm_params": lgbm_result["params"],
         },
         "permutation_importance": {
             "n_train": PERMUTATION_N_TRAIN,
@@ -222,6 +247,7 @@ def main() -> None:
     print(f"wrote {META_PATH}")
     print()
     print("Brier scores (lower = better calibrated):", {k: round(v, 4) for k, v in briers.items()})
+    print("Log loss (lower = better calibrated):", {k: round(v, 4) for k, v in log_losses.items()})
 
 
 if __name__ == "__main__":

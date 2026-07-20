@@ -300,22 +300,29 @@ def test_compute_seed_spread_is_json_serializable():
     json.dumps(spread)  # must not raise -- keys are strings, values are plain floats/ints
 
 
-def test_compute_seed_spread_on_real_curve_csv_matches_review_b1_numbers():
-    """Anchors against REVIEW.md B-1's hand-recomputed lgbm@5000 numbers:
-    mean gap ~0.0015 vs tabpfn, lgbm's own seed spread ~0.0093."""
+def test_compute_seed_spread_on_real_curve_csv_after_seed_expansion():
+    """Anchors against the 10/5-seed curve (commit 9dd7729, Task B4), which
+    superseded REVIEW.md B-1's original 2-seed reading at n=5000. Two things
+    changed substantively, not just numerically: lgbm's own seed spread at
+    n=5000 widened a lot (0.0093 with 2 seeds -> ~0.0158 with 5), and the
+    lgbm-vs-tabpfn mean gap FLIPPED SIGN -- lgbm looked ~0.0015 ahead in mean
+    with 2 noisy seeds, tabpfn is now ~0.0014 ahead in mean with 5. Both
+    readings are within seed noise (see test_stats.py's paired-tie assertion
+    at n=5000); this test only pins the new point estimates, not a claim of
+    significance."""
     df = pd.read_csv(REAL_CURVE_CSV_PATH)
     spread = compute_seed_spread(df)
 
     lgbm_5k = spread["5000"]["lgbm"]
-    assert lgbm_5k["n_seeds"] == 2
-    assert lgbm_5k["mean"] == pytest.approx(0.91524, abs=1e-4)
-    assert lgbm_5k["min"] == pytest.approx(0.910595, abs=1e-5)
+    assert lgbm_5k["n_seeds"] == 5
+    assert lgbm_5k["mean"] == pytest.approx(0.91132, abs=1e-4)
+    assert lgbm_5k["min"] == pytest.approx(0.904073, abs=1e-5)
     assert lgbm_5k["max"] == pytest.approx(0.919883, abs=1e-5)
-    assert (lgbm_5k["max"] - lgbm_5k["min"]) == pytest.approx(0.0093, abs=1e-4)
+    assert (lgbm_5k["max"] - lgbm_5k["min"]) == pytest.approx(0.0158, abs=1e-4)
 
     tabpfn_5k = spread["5000"]["tabpfn"]
     mean_gap = lgbm_5k["mean"] - tabpfn_5k["mean"]
-    assert mean_gap == pytest.approx(0.0015, abs=1e-4)
+    assert mean_gap == pytest.approx(-0.00137, abs=1e-4)  # sign flipped vs. the old 2-seed reading
 
 
 def test_compute_seed_spread_missing_model_at_size_is_absent_not_crashed():
@@ -325,5 +332,5 @@ def test_compute_seed_spread_missing_model_at_size_is_absent_not_crashed():
     spread = compute_seed_spread(df)
     assert "tabpfn" not in spread["10000"]
     assert "lgbm" in spread["10000"]
-    assert spread["10000"]["lgbm"]["n_seeds"] == 1
-    assert spread["10000"]["lgbm"]["std"] == 0.0
+    assert spread["10000"]["lgbm"]["n_seeds"] == 5
+    assert spread["10000"]["lgbm"]["std"] == pytest.approx(0.002965, abs=1e-5)

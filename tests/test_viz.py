@@ -160,26 +160,39 @@ def test_learning_curve_title_raises_when_no_lgbm_rows():
         viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
 
 
-def test_learning_curve_title_on_real_csv_is_a_range_not_a_point_crossover():
-    """At n=5000 the lgbm-vs-tabpfn mean gap (~0.0015) is far smaller than
-    lgbm's own seed spread (~0.0093) and the two seeds disagree in sign
-    (REVIEW.md B-1) -- the title must not assert a point crossover there."""
+def test_learning_curve_title_on_real_csv_tabpfn_never_caught_up_after_seed_expansion():
+    """The 10/5-seed curve (commit 9dd7729, Task B4) changes which branch of
+    learning_curve_title fires at n=5000, not just the numbers feeding it.
+    REVIEW.md B-1's original 2-seed reading had lgbm's mean nose ahead of
+    tabpfn's by ~0.0015 with disagreeing seed signs, which forced the
+    noise-range branch ("crossover... between 2k and 5k"). With 5 seeds,
+    lgbm's mean NEVER reaches tabpfn's mean at any measured size (200
+    through 5000) -- there's no crossover left to bracket, not even a noisy
+    one. Statistically n=5000 is still a tie (see test_stats.py's paired
+    assertion), but the honest headline is "TabPFN never caught up within
+    the measured range", not "somewhere between 2k and 5k". Flag for B5."""
     df = pd.read_csv(CURVE_CSV_PATH)
     title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
-    assert "~5,000" not in title
-    assert "~5k" not in title
-    assert "noise" in title.lower() or "tied" in title.lower()
-
-
-def test_learning_curve_title_range_bounds_come_from_the_data_on_real_csv():
-    """Bracket must be [last size TabPFN leads with consistent seed sign,
-    first later size that is no longer a confirmed TabPFN win] -- 2k and 5k
-    for the currently committed CSV -- not the hardcoded "2k"/"10k" prose
-    from REVIEW.md itself."""
-    df = pd.read_csv(CURVE_CSV_PATH)
-    title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
-    assert "2k" in title
+    assert "never catches up" in title.lower()
+    assert "overtakes" not in title.lower()  # no point crossover either
     assert "5k" in title
+
+
+def test_learning_curve_title_never_catches_up_bound_is_derived_from_the_data_on_real_csv():
+    """The bound named in the "never catches up through <n> rows" wording
+    must be read off the data (the largest size where both models were
+    measured, i.e. TabPFN's actual max n_train), not hardcoded -- same
+    intent as the pre-expansion test this replaces (bounds come from data),
+    but the shape changed: one bound now, not a two-sided bracket, since
+    lgbm's mean never reaches tabpfn's mean anywhere in the 10/5-seed curve
+    (see the sibling test above)."""
+    df = pd.read_csv(CURVE_CSV_PATH)
+    title = viz.learning_curve_title(df, tabpfn_stopped_at_pretrain_cap=False)
+
+    tabpfn_max_n = int(df.loc[df["model"] == "tabpfn", "n_train"].max())
+    assert tabpfn_max_n == 5000  # sanity: what "the largest we ran TabPFN on CPU" means today
+    assert viz._fmt_n(tabpfn_max_n) in title
+    assert "2k" not in title  # no two-sided bracket anymore -- confirm the old bound is gone
 
 
 def test_learning_curve_title_asserts_point_crossover_when_gap_beats_spread():

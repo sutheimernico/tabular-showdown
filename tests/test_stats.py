@@ -257,19 +257,25 @@ def test_paired_from_curve_result_values_are_paired_result_instances():
         assert v.model_b == "lgbm"
 
 
-def test_paired_from_curve_on_real_csv_n5000_is_a_tie_with_two_pairs():
-    """Anchors against REVIEW.md B-1's real numbers: at n=5000 there are only
-    2 paired seeds today and they disagree in sign -- verdict must be "tie"."""
+def test_paired_from_curve_on_real_csv_n5000_is_still_a_tie_with_five_pairs():
+    """After the seed-expansion compute run (commit 9dd7729, Task B4) there
+    are 5 paired seeds at n=5000, not 2 (REVIEW.md B-1's original reading) --
+    the tie verdict survives the extra statistical power, but the point
+    estimate FLIPPED SIGN: with 2 noisy seeds lgbm looked ~0.0015 ahead in
+    mean; with 5 seeds tabpfn is ~0.0014 ahead in mean instead. Either way
+    the CI still straddles 0, so "tie" remains the honest verdict -- this is
+    the headline number for the B5 README rewrite."""
     import pandas as pd
 
     df = pd.read_csv(REAL_CURVE_CSV_PATH)
     result = paired_from_curve(df, "tabpfn", "lgbm")
 
     r5k = result["5000"]
-    assert r5k.n_pairs == 2
-    assert r5k.mean_diff == pytest.approx(0.0015, abs=1e-4)  # lgbm - tabpfn
+    assert r5k.n_pairs == 5
+    assert r5k.mean_diff == pytest.approx(-0.00137, abs=1e-4)  # lgbm - tabpfn: sign flipped
+    assert r5k.ci95_low < 0 < r5k.ci95_high
     assert r5k.verdict == "tie"
-    assert r5k.wilcoxon_floor_note is not None  # n=2 < 6
+    assert r5k.wilcoxon_floor_note is not None  # n=5 < 6
 
 
 def test_paired_from_curve_on_real_csv_excludes_10000_tabpfn_never_ran():

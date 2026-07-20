@@ -92,14 +92,20 @@ def paired_seed_comparison(
     standard check, but does not itself drive verdict -- see the module
     docstring for why (the floor problem at low seed counts).
 
-    Wilcoxon uses zero_method="pratt", not scipy's default "wilcox": "wilcox"
-    silently discards zero-difference pairs *before* ranking whenever some
-    (but not all) seeds tie exactly, shrinking the effective sample size
-    below n_pairs -- so wilcoxon_floor_note's floor, computed from n_pairs,
-    would be optimistic (the *real* achievable floor at the smaller effective
-    n is higher/worse than that). "pratt" keeps zero pairs in the ranking
-    (only dropping their contribution to the final statistic afterward), so
-    the floor computed from n_pairs stays honest.
+    Wilcoxon uses zero_method="pratt", not scipy's default "wilcox": "pratt"
+    is the more defensible treatment of zero-difference pairs -- it keeps
+    them in the ranking rather than silently discarding data before scipy
+    ever sees it. That said, pratt does *not* by itself restore the
+    n_pairs-based floor documented on wilcoxon_floor_note when zero-diffs are
+    present: a zero-diff carries no directional signal under either method,
+    so with z zeros among n_pairs, the achievable floor is still governed by
+    the (n_pairs - z) nonzero pairs, not n_pairs itself (verified: 2 zeros +
+    4 same-sign nonzero diffs give p=0.125 under *both* pratt and wilcox --
+    the 4-nonzero-pair floor 2**(1-4), not the 6-pair floor 2**(1-6)).
+    wilcoxon_floor_note is therefore optimistic whenever zero-diffs are
+    present -- practically unreachable here, since ROC-AUC diffs across
+    different subsample seeds are continuous and an exact-zero difference
+    essentially never occurs.
     """
     if len(a) != len(b):
         raise ValueError(

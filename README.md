@@ -50,13 +50,17 @@ logistic-regression baseline isn't just a floor — it nearly matches TabPFN,
 and both comfortably beat LightGBM. At n=200 (10 seeds), LogReg's mean
 ROC-AUC is 0.882 against TabPFN's 0.884 (a 0.003 gap) while LightGBM sits
 at 0.784 — badly hurt by a 10-trial Optuna budget that isn't enough search
-to find good hyperparameters from so few rows. The gap between LogReg and
-TabPFN narrows further by n=1,000 (0.897 vs. 0.904) before LightGBM's own
-tuning starts paying off again at 2,000+ rows, where it overtakes LogReg
-(0.906 vs. 0.901 at n=2,000). Read this as a comment on the 10-trial
-tuning *budget* used everywhere in this project, not as "LightGBM is bad at
-small data" — a wider search would likely close most of this gap; this
-project never tests that (REVIEW.md WP-B3.1).
+to find good hyperparameters from so few rows. The tabpfn-minus-logreg gap
+itself is noisy, not a clean trend: it widens sharply by n=500 (0.010)
+before partially retreating (0.007 at n=1,000) and drifting back up
+through 2,000–5,000 rows (0.008, 0.009) — read that as sampling noise on
+top of a real but small and non-monotonic gap, not a story with a
+direction. LightGBM's own tuning starts paying off by 2,000+ rows, where
+it overtakes LogReg (0.906 vs. 0.901 at n=2,000). Read the small-n
+collapse as a comment on the 10-trial tuning *budget* used everywhere in
+this project, not as "LightGBM is bad at small data" — a wider search
+would likely close most of this gap; this project never tests that
+(REVIEW.md WP-B3, point 1).
 
 ## Figures
 
@@ -76,6 +80,16 @@ in this figure is now tuned fresh at n_train=2,000 with the same
 10-trial/3-fold recipe used everywhere else in this project, and most of
 the old calibration gap turns out to have been a tuning artifact, not a
 real difference between trees and in-context learning.
+
+Zooming out from this single split to the mean across all curve seeds
+(`learning_curve.csv`'s own `brier`/`log_loss` columns) shows exactly why
+a one-metric calibration story is fragile: **mean Brier flips sign between
+n=2,000 and n=5,000** — TabPFN ahead at 2,000 (0.0996 vs. LightGBM's
+0.1012), LightGBM narrowly ahead at 5,000 (0.0973 vs. TabPFN's 0.0975) —
+**but mean log loss does not flip**; TabPFN stays lower at both sizes
+(0.3109 vs. 0.3185 at 2,000; 0.3046 vs. 0.3074 at 5,000). Brier and log
+loss don't have to agree, and here they don't: pick one scoring rule and
+you can tell either story.
 
 ### Prediction-time cost
 
@@ -121,7 +135,7 @@ uv run python scripts/run_curve.py             # -> results/learning_curve.csv (
 uv run python scripts/plot_curve.py            # -> results/learning_curve.{png,svg}
 
 # M5: calibration, SHAP, permutation importance
-uv run python scripts/make_figures.py          # -> results/figures/*.{png,svg} (~5 min, CPU)
+uv run python scripts/make_figures.py          # -> results/figures/*.{png,svg} (~5-10 min, CPU; the single TabPFN predict alone can hit ~5.5 min under contention)
 
 # M6: the Streamlit demo
 uv run streamlit run app.py
@@ -162,8 +176,9 @@ re-run in isolation once the earlier artifacts exist. `results/` and
 - **Calibration + SHAP figures** (`results/figures/calibration.png`,
   `shap_summary.png`) train all three models fresh at **n_train=2,000**
   (seed 0) — the largest size where a single TabPFN predict on the full
-  4,000-row eval set stays a few minutes on CPU (measured ~209–250s across
-  runs, CPU contention from other jobs pushes it higher). LightGBM is
+  4,000-row eval set stays a few minutes on CPU (measured ~216–328s across
+  the curve's 10 seeds at this size; CPU contention from other jobs can
+  push a single live run higher still). LightGBM is
   freshly Optuna-tuned at this size too (10 trials, 3-fold CV, the same
   recipe `run_curve.py` uses) rather than reusing the full-train-tuned
   baseline — it used to reuse those params, which made the calibration
@@ -200,8 +215,12 @@ re-run in isolation once the earlier artifacts exist. `results/` and
   required to even run TabPFN above 1,000 rows on CPU with this library
   version (2.0.9); it overrides a performance guard, not a hard capability
   ceiling.
-- **Adult is a "solved" dataset.** Every model here lands in the same
-  0.88–0.93 ROC-AUC band that's been published dozens of times. The point
+- **Adult is a "solved" dataset.** The full-train and large-n points land
+  in the same 0.88–0.93 ROC-AUC band that's been published dozens of times.
+  Small-n LightGBM is the exception, not the rule: its 10-trial-tuning
+  collapse (see "LogReg's honest surprise" above) pulls it as low as 0.747
+  at n=200 across the 10 seeds — well below the "solved" band, and below
+  TabPFN's (0.850) and LogReg's (0.868) own floors at that size. The point
   of this repo is the *comparison method* — the learning-size curve,
   calibration, timing, and explanation methodology — not a SOTA accuracy
   claim.

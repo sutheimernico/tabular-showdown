@@ -5,10 +5,30 @@
     "n_eval": 4000,
     "brier": {
       "tabpfn": 0.10068677918022646,
-      "lgbm": 0.10914172808724922,
+      "lgbm": 0.10161324812619316,
       "logreg": 0.10508429145843419
     },
-    "lgbm_params_source": "results/lgbm_baseline.json (reused, not re-tuned)"
+    "log_loss": {
+      "tabpfn": 0.3156694962739213,
+      "lgbm": 0.31927517406118433,
+      "logreg": 0.3308670445320105
+    },
+    "lgbm_params_source": "curve:n=2000:seed=0 (fresh 10-trial/3-fold Optuna re-tune inside make_figures.py, matching curve.py's per-size recipe -- per-size tuned params are not persisted by run_curve, see REVIEW.md B-2)",
+    "lgbm_params": {
+      "objective": "binary",
+      "verbosity": -1,
+      "n_jobs": -1,
+      "num_leaves": 50,
+      "learning_rate": 0.012438088147597642,
+      "n_estimators": 446,
+      "min_child_samples": 59,
+      "feature_fraction": 0.7061557963757782,
+      "bagging_fraction": 0.8092992213866799,
+      "bagging_freq": 1,
+      "lambda_l1": 0.0015258732517912485,
+      "lambda_l2": 2.3102861693191303,
+      "seed": 0
+    }
   },
   "permutation_importance": {
     "n_train": 200,
@@ -29,5 +49,5 @@
     "lightgbm": "4.6.0",
     "scikit-learn": "1.6.1"
   },
-  "timestamp": "2026-07-11T07:55:28.953976+00:00"
+  "timestamp": "2026-07-20T22:35:29.173726+00:00"
 }

@@ -19,6 +19,7 @@ present. A kill (session cleanup, OOM, ...) loses at most one point; just
 launch the script again and it resumes from where it stopped.
 """
 
+import argparse
 import csv
 import json
 import platform
@@ -58,13 +59,17 @@ LGBM_N_FOLDS = 3
 TABPFN_MAX_SECONDS = 8 * 60
 
 
-def _load_skip_keys() -> tuple[set[tuple[str, int, int]], int]:
+def _load_skip_keys(valve_seconds: float) -> tuple[set[tuple[str, int, int]], int]:
     """Read the CSV (if any) and build the set of already-computed points.
 
     Also reconstructs the TabPFN safety-valve decision from persisted timings:
-    if a completed TabPFN point already exceeded the budget, every larger
+    if a completed TabPFN point already exceeded `valve_seconds`, every larger
     TabPFN size is pre-added to the skip set so a resume honors the valve
     even though this invocation never times that earlier point itself.
+
+    `valve_seconds` is the effective budget for this invocation (the CLI flag,
+    defaulting to TABPFN_MAX_SECONDS) -- raising it lets a resume deliberately
+    re-attempt a size the default budget would have skipped.
     """
     if not CSV_PATH.exists() or CSV_PATH.stat().st_size == 0:
         return set(), 0
@@ -76,7 +81,7 @@ def _load_skip_keys() -> tuple[set[tuple[str, int, int]], int]:
 
     tp = prev[prev["model"] == "tabpfn"]
     if not tp.empty:
-        slow = tp[(tp["fit_s"] + tp["predict_s"]) > TABPFN_MAX_SECONDS]
+        slow = tp[(tp["fit_s"] + tp["predict_s"]) > valve_seconds]
         if not slow.empty:
             cutoff = int(slow["n_train"].min())
             for n in CURVE_SIZES:
@@ -86,7 +91,24 @@ def _load_skip_keys() -> tuple[set[tuple[str, int, int]], int]:
     return skip, len(prev)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Run/resume the learning-size curve.")
+    parser.add_argument(
+        "--tabpfn-time-valve-seconds",
+        type=float,
+        default=TABPFN_MAX_SECONDS,
+        metavar="SECONDS",
+        help=(
+            "Per-point TabPFN compute safety-valve budget. A TabPFN point over "
+            "this many seconds trips the valve so larger TabPFN sizes are skipped, "
+            "and a resume reconstructs that decision from persisted timings. "
+            f"Default {TABPFN_MAX_SECONDS:.0f}s; raise it to deliberately measure "
+            "or run a slow point (e.g. n=10000 on CPU) that the default skips."
+        ),
+    )
+    args = parser.parse_args(argv)
+    tabpfn_max_seconds = args.tabpfn_time_valve_seconds
+
     run_start = time.perf_counter()
 
     train_df, test_df = load_adult(DATA_DIR)
@@ -97,11 +119,11 @@ def main() -> None:
     full_lgbm_params = json.loads(BASELINE_PATH.read_text())["params"]
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    skip_keys, n_resumed = _load_skip_keys()
+    skip_keys, n_resumed = _load_skip_keys(tabpfn_max_seconds)
 
     print(f"learning-size curve: n_train_full={len(X_train)} n_eval={len(X_eval)}")
     print(f"sizes={CURVE_SIZES} + full ({len(X_train)}) for lgbm/logreg only")
-    print(f"tabpfn row cap={TABPFN_ROW_CAP}, safety valve={TABPFN_MAX_SECONDS:.0f}s/point")
+    print(f"tabpfn row cap={TABPFN_ROW_CAP}, safety valve={tabpfn_max_seconds:.0f}s/point")
     if n_resumed:
         print(f"RESUMING: {n_resumed} points already in {CSV_PATH.name}, skipping those")
     print()
@@ -130,7 +152,7 @@ def main() -> None:
             models=("tabpfn", "lgbm", "logreg"),
             lgbm_n_trials=LGBM_N_TRIALS,
             lgbm_n_folds=LGBM_N_FOLDS,
-            tabpfn_max_seconds=TABPFN_MAX_SECONDS,
+            tabpfn_max_seconds=tabpfn_max_seconds,
             skip_keys=skip_keys,
             progress=progress,
         ):
@@ -145,7 +167,7 @@ def main() -> None:
     if tabpfn_max_n < TABPFN_ROW_CAP:
         tabpfn_cap_reason = (
             f"compute safety valve: a TabPFN point took longer than "
-            f"{TABPFN_MAX_SECONDS:.0f}s on CPU, larger sizes were skipped"
+            f"{tabpfn_max_seconds:.0f}s on CPU, larger sizes were skipped"
         )
     else:
         tabpfn_cap_reason = (

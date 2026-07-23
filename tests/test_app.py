@@ -6,10 +6,11 @@ results/ artifacts: they catch "the app throws" regressions (schema drift,
 a stale cache_data signature, ...) that the pure-function tests elsewhere in
 this suite can't see, since app.py itself is otherwise never exercised.
 
-The missing-artifact tests copy the app + a results/ tree into a temp dir
+The guard tests clone the app + a mutable results/ tree into a temp dir
 (AppTest sets __file__ to the copied path, so app.py's ROOT relocates
-there), delete one required artifact, and assert the app renders one
-friendly German error box -- not a raw traceback from the first st.image().
+there) and then delete or corrupt one artifact. Each asserts the app
+renders one friendly German error box -- a missing file, a present-but-
+wrong-schema CSV, or malformed JSON -- instead of a raw traceback.
 """
 
 import shutil
@@ -17,10 +18,22 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APP_PATH = REPO_ROOT / "app.py"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_streamlit_cache():
+    # st.cache_data is a process-global cache keyed by function code + args,
+    # not by AppTest instance. Without this, a loader cached by one test
+    # (e.g. a valid learning_curve.csv from the default-load test) would be
+    # served to a later test's cloned app -- masking the corrupt-artifact
+    # guards, which only fire when the loader actually re-reads the file.
+    st.cache_data.clear()
+    yield
 
 # Contract mirror of app.REQUIRED_RESULT_FILES: every results/ artifact the
 # app hard-requires, paired with the script whose `uv run python` invocation
@@ -35,6 +48,19 @@ REQUIRED_ARTIFACTS = [
     ("results/figures/shap_summary.png", "scripts/make_figures.py"),
     ("results/figures/permutation_importance.png", "scripts/make_figures.py"),
 ]
+
+
+def _clone_app(tmp_root: Path, *, with_data: bool = False) -> Path:
+    """Copy app.py + a mutable results/ tree into tmp_root so a test can
+    delete or corrupt artifacts without touching the real repo. AppTest sets
+    __file__ to the returned path, so the app's ROOT (hence RESULTS_DIR /
+    DATA_DIR) relocates here. data/ is symlinked -- it is read-only, and only
+    the live-refit path (the malformed-JSON guard) ever reaches it."""
+    shutil.copy(APP_PATH, tmp_root / "app.py")
+    shutil.copytree(REPO_ROOT / "results", tmp_root / "results")
+    if with_data:
+        (tmp_root / "data").symlink_to(REPO_ROOT / "data")
+    return tmp_root / "app.py"
 
 
 def test_app_runs_without_exception_on_default_load():
@@ -86,11 +112,10 @@ def test_app_live_refit_button_fits_logreg_and_lgbm_at_smallest_size():
 def test_app_shows_german_guard_when_a_required_artifact_is_missing(missing_rel_path, script):
     with TemporaryDirectory(prefix="tabular-showdown-test-app-") as tmp:
         tmp_root = Path(tmp)
-        shutil.copy(APP_PATH, tmp_root / "app.py")
-        shutil.copytree(REPO_ROOT / "results", tmp_root / "results")
+        app = _clone_app(tmp_root)
         (tmp_root / missing_rel_path).unlink()
 
-        at = AppTest.from_file(str(tmp_root / "app.py"))
+        at = AppTest.from_file(str(app))
         at.run(timeout=60)
 
     assert not at.exception  # a friendly stop(), not a raw traceback
@@ -99,7 +124,58 @@ def test_app_shows_german_guard_when_a_required_artifact_is_missing(missing_rel_
     assert "fehlen" in message  # German error box, not the old English wording
     assert missing_rel_path in message  # names the file that is missing
     assert f"uv run python {script}" in message  # names the runnable fix
-    # The guard runs up front, so nothing downstream renders -- in particular
-    # no st.image() has been reached (that is the traceback this guard prevents).
+    # The up-front guard halts before anything downstream renders -- in
+    # particular no st.image() has been reached (that is the traceback this
+    # guard prevents).
     assert len(at.title) == 0
     assert len(at.image) == 0
+
+
+# --- Malformed-content guards: present-but-corrupt artifacts ------------------
+
+
+def test_app_shows_german_guard_when_curve_csv_has_wrong_schema():
+    # Unlike the up-front missing-file guard, _load_curve_csv's schema check
+    # fires during normal render -- after the title and the money-chart image
+    # -- so this asserts the error box, not their absence (they render first).
+    with TemporaryDirectory(prefix="tabular-showdown-test-app-") as tmp:
+        tmp_root = Path(tmp)
+        app = _clone_app(tmp_root)
+        # Valid CSV, but none of the columns the app needs.
+        (tmp_root / "results" / "learning_curve.csv").write_text("a,b\n1,2\n")
+
+        at = AppTest.from_file(str(app))
+        at.run(timeout=60)
+
+    assert not at.exception
+    assert len(at.error) == 1
+    message = at.error[0].value
+    assert "Spalten" in message  # German column-schema wording
+    assert "results/learning_curve.csv" in message
+    assert "uv run python scripts/run_curve.py" in message
+
+
+def test_app_shows_german_guard_when_lgbm_params_json_is_malformed():
+    # _load_lgbm_params is reached only through the live-refit button (it
+    # feeds _live_refit), so this drives the button; the guard fires on the
+    # bad JSON before any model is fit. data/ is required because _live_refit
+    # loads the frozen eval set before it ever reads the params.
+    with TemporaryDirectory(prefix="tabular-showdown-test-app-") as tmp:
+        tmp_root = Path(tmp)
+        app = _clone_app(tmp_root, with_data=True)
+        (tmp_root / "results" / "lgbm_baseline.json").write_text("{ not valid json")
+
+        at = AppTest.from_file(str(app))
+        at.run(timeout=60)
+        assert not at.exception  # normal render is fine; params not read yet
+
+        at.slider[0].set_value(100)  # live n_train; guard fires before any fit
+        at.button[0].set_value(True)
+        at.run(timeout=120)
+
+    assert not at.exception
+    assert len(at.error) == 1
+    message = at.error[0].value
+    assert "beschädigt" in message  # German "corrupted" wording
+    assert "results/lgbm_baseline.json" in message
+    assert "uv run python scripts/run_lgbm_baseline.py" in message

@@ -25,7 +25,7 @@ from matplotlib.figure import Figure
 from tabular_showdown.curve import TABPFN_ROW_CAP, compute_seed_spread
 from tabular_showdown.explain import calibration_data
 from tabular_showdown.metrics import classification_metrics
-from tabular_showdown.stats import _seed_pairs
+from tabular_showdown.stats import PairedResult, _seed_pairs
 
 MODEL_COLORS = {"tabpfn": "#2a78d6", "lgbm": "#1baf7a", "logreg": "#eda100"}
 MODEL_LABELS = {"tabpfn": "TabPFN v2", "lgbm": "LightGBM (tuned)", "logreg": "LogReg (untuned)"}
@@ -48,6 +48,107 @@ def metrics_table(results: dict[str, dict[str, float]]) -> pd.DataFrame:
     """
     rows = [{"model": MODEL_LABELS.get(m, m), **metrics} for m, metrics in results.items()]
     return pd.DataFrame(rows)
+
+
+# Compact model names for the verdict table -- MODEL_LABELS ("TabPFN v2",
+# "LightGBM (tuned)") is too verbose for an inline "(A - B)" diff header and
+# per-row verdict cell.
+VERDICT_LABELS = {"tabpfn": "TabPFN", "lgbm": "LightGBM", "logreg": "LogReg"}
+
+# Dagger flagging a size that hits Wilcoxon's low-n significance floor (n<6),
+# explained in the footnote verdict_markdown appends.
+_FLOOR_MARK = "†"
+_FLOOR_FOOTNOTE = (
+    "At fewer than 6 seed pairs, the Wilcoxon signed-rank test cannot reach p<0.05 "
+    "however consistent the effect -- its minimum two-sided p-value is 2^(1-n) "
+    "(0.0625 at n=5) -- so the verdict rests on the paired-t 95% CI, not on the "
+    "Wilcoxon p. See the Limits section for why few-seed, single-split numbers get "
+    "the conservative verdict."
+)
+
+
+def _fmt_signed(x: float) -> str:
+    """+0.0033 / -0.0014 -- 4 dp, explicit sign, typographic minus to match the
+    surrounding README prose."""
+    return f"{x:+.4f}".replace("-", "−")
+
+
+def _p_expr(label: str, p: float | None) -> str:
+    """'paired t p<0.001' / 'paired t p=0.005' / 'Wilcoxon p=n/a' (undefined:
+    all seeds exactly tied, nothing for Wilcoxon to rank)."""
+    if p is None:
+        return f"{label} p=n/a"
+    if p < 0.001:
+        return f"{label} p<0.001"
+    return f"{label} p={p:.3f}"
+
+
+def _verdict_label(r: PairedResult) -> str:
+    """Human verdict from PairedResult's generic a/b label plus its model names."""
+    if r.verdict == "tie":
+        return "tie"
+    winner = r.model_a if r.verdict == "a_wins" else r.model_b
+    return f"{VERDICT_LABELS.get(winner, winner)} wins"
+
+
+def _verdict_rows(results: dict[str, PairedResult]) -> tuple[list[str], list[list[str]]]:
+    """(columns, rows) of display-ready string cells for the per-size verdict
+    table, shared by verdict_markdown so every surface shows identical values.
+
+    Diff and CI are oriented model_a - model_b (TabPFN - LightGBM), the
+    opposite sign of PairedResult.mean_diff (which is b - a): a positive number
+    then means model_a is ahead, aligning with an 'A wins' verdict. The CI
+    bounds are negated *and* swapped so [low, high] stays ordered.
+    """
+    r0 = next(iter(results.values()))
+    a = VERDICT_LABELS.get(r0.model_a, r0.model_a)
+    b = VERDICT_LABELS.get(r0.model_b, r0.model_b)
+    columns = [
+        "Train size (n)",
+        "Seed pairs",
+        f"Mean ROC-AUC diff ({a} − {b})",
+        "95% CI",
+        "Test",
+        "Verdict",
+    ]
+    rows: list[list[str]] = []
+    for size in sorted(results, key=int):
+        r = results[size]
+        diff = -r.mean_diff
+        ci_low, ci_high = -r.ci95_high, -r.ci95_low
+        test = f"{_p_expr('paired t', r.t_p)}, {_p_expr('Wilcoxon', r.wilcoxon_p)}"
+        if r.wilcoxon_floor_note is not None:
+            test += f" {_FLOOR_MARK}"
+        rows.append(
+            [
+                f"{int(size):,}",
+                str(r.n_pairs),
+                _fmt_signed(diff),
+                f"[{_fmt_signed(ci_low)}, {_fmt_signed(ci_high)}]",
+                test,
+                _verdict_label(r),
+            ]
+        )
+    return columns, rows
+
+
+def verdict_markdown(results: dict[str, PairedResult]) -> str:
+    """GitHub-flavored markdown table of the per-size paired verdicts, plus a
+    footnote whenever a size hits Wilcoxon's low-n floor.
+
+    Consumed by both scripts/make_stats_table.py (README injection) and app.py
+    (rendered live via st.markdown) so the README and the app never disagree.
+    """
+    columns, rows = _verdict_rows(results)
+    lines = [
+        "| " + " | ".join(columns) + " |",
+        "|" + "|".join(["---"] * len(columns)) + "|",
+    ]
+    lines += ["| " + " | ".join(row) + " |" for row in rows]
+    md = "\n".join(lines)
+    if any(r.wilcoxon_floor_note is not None for r in results.values()):
+        md += f"\n\n{_FLOOR_MARK} {_FLOOR_FOOTNOTE}"
+    return md
 
 
 def _new_axes(figsize: tuple[float, float] = (9, 5.5)) -> tuple[Figure, Axes]:

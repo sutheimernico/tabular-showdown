@@ -26,6 +26,28 @@ out-of-range comparison**: nothing about TabPFN was ever measured at that
 size, and 32,561 rows sits outside TabPFN v2's own ≤10,000-row
 applicability envelope besides (see "Where this sits in 2026" below).
 
+**Per-size significance (TabPFN v2 vs. tuned LightGBM).** Every comparative
+claim above rests on a seed-paired test at each training size both models
+actually ran on. A **tie** means the paired 95% CI on the ROC-AUC gap
+includes 0 (equivalently, the paired *t*-test does not reject at α=0.05); a
+**win** means it excludes 0 — see
+[Limits](#limits-read-this-before-trusting-a-number-above) for why few-seed,
+single-split numbers get the conservative verdict. This table is generated
+from `results/learning_curve.csv` by `scripts/make_stats_table.py` — do not
+hand-edit it.
+
+<!-- stats-table:start -->
+| Train size (n) | Seed pairs | Mean ROC-AUC diff (TabPFN − LightGBM) | 95% CI | Test | Verdict |
+|---|---|---|---|---|---|
+| 200 | 10 | +0.1000 | [+0.0795, +0.1205] | paired t p<0.001, Wilcoxon p=0.002 | TabPFN wins |
+| 500 | 10 | +0.0260 | [+0.0178, +0.0341] | paired t p<0.001, Wilcoxon p=0.002 | TabPFN wins |
+| 1,000 | 10 | +0.0125 | [+0.0070, +0.0180] | paired t p<0.001, Wilcoxon p=0.002 | TabPFN wins |
+| 2,000 | 10 | +0.0033 | [+0.0013, +0.0053] | paired t p=0.005, Wilcoxon p=0.002 | TabPFN wins |
+| 5,000 | 5 | +0.0014 | [−0.0045, +0.0072] | paired t p=0.551, Wilcoxon p=0.625 † | tie |
+
+† At fewer than 6 seed pairs, the Wilcoxon signed-rank test cannot reach p<0.05 however consistent the effect -- its minimum two-sided p-value is 2^(1-n) (0.0625 at n=5) -- so the verdict rests on the paired-t 95% CI, not on the Wilcoxon p. See the Limits section for why few-seed, single-split numbers get the conservative verdict.
+<!-- stats-table:end -->
+
 This repo benchmarks **TabPFN v2** ([Hollmann et al., *Nature* 2025](https://www.nature.com/articles/s41586-024-08328-6) — "Accurate predictions on small data with a tabular foundation model"), a prior-data fitted transformer that classifies by in-context learning instead of gradient-based training, against a **tuned LightGBM** (Optuna TPE search) and an **untuned logistic regression** reference, on the UCI Adult / census income dataset. The goal isn't beating a leaderboard — Adult is a "solved" dataset — it's mapping out *where each approach wins* and being honest about the compute cost of each, with a named significance test behind every comparative claim rather than a bare mean-vs-mean headline.
 
 ## When to use what

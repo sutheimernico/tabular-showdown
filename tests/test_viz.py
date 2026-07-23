@@ -19,6 +19,7 @@ from matplotlib.figure import Figure
 from tabular_showdown import explain, viz
 from tabular_showdown.data import frozen_eval_set, load_adult, split_features_target
 from tabular_showdown.models import fit_lgbm
+from tabular_showdown.stats import paired_seed_comparison
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 LGBM_BASELINE_PATH = Path(__file__).resolve().parent.parent / "results" / "lgbm_baseline.json"
@@ -260,3 +261,57 @@ def test_metrics_table_shape():
     assert table.shape == (3, 5)  # model + 4 metrics
     assert set(table.columns) == {"model", "roc_auc", "accuracy", "log_loss", "brier"}
     assert set(table["model"]) == {"TabPFN v2", "LightGBM (tuned)", "LogReg (untuned)"}
+
+
+# --- verdict_markdown ---------------------------------------------------
+#
+# Orientation of the signed numbers (TabPFN - LightGBM, opposite of the raw
+# b - a mean_diff) is pinned against the *real* committed CSV in
+# tests/test_stats_table.py; these guard the label mapping and the low-n
+# footnote logic on hermetic synthetic PairedResults.
+
+
+def test_verdict_markdown_model_a_win_maps_to_named_verdict_and_positive_diff():
+    # tabpfn (model_a) consistently ~0.10 above lgbm every seed -> raw
+    # mean_diff (lgbm - tabpfn) is negative; the displayed TabPFN - LightGBM
+    # diff must flip to positive, and the verdict must name TabPFN.
+    a = [0.90, 0.91, 0.92, 0.905, 0.915, 0.895]
+    b = [0.80, 0.813, 0.818, 0.806, 0.812, 0.799]
+    res = {"1000": paired_seed_comparison(a, b, model_a="tabpfn", model_b="lgbm")}
+    md = viz.verdict_markdown(res)
+
+    assert "Mean ROC-AUC diff (TabPFN − LightGBM)" in md
+    assert "| TabPFN wins |" in md
+    assert "+0.0" in md  # positive gap displayed, sign flipped from raw b - a
+    assert "†" not in md  # n=6, no Wilcoxon floor
+
+
+def test_verdict_markdown_model_b_win_names_the_other_model():
+    # Mirror image: lgbm (model_b) leads -> verdict names LightGBM.
+    a = [0.80, 0.813, 0.818, 0.806, 0.812, 0.799]
+    b = [0.90, 0.91, 0.92, 0.905, 0.915, 0.895]
+    res = {"1000": paired_seed_comparison(a, b, model_a="tabpfn", model_b="lgbm")}
+    md = viz.verdict_markdown(res)
+    assert "| LightGBM wins |" in md
+
+
+def test_verdict_markdown_tie_at_five_pairs_appends_floor_footnote():
+    # Mixed-sign small gaps at n=5 -> CI includes 0 (tie), and n<6 triggers
+    # the Wilcoxon-floor footnote.
+    a = [0.913, 0.914, 0.912, 0.915, 0.913]
+    b = [0.911, 0.916, 0.913, 0.910, 0.918]
+    res = {"5000": paired_seed_comparison(a, b, model_a="tabpfn", model_b="lgbm")}
+    md = viz.verdict_markdown(res)
+
+    assert "| tie |" in md
+    assert "†" in md
+    assert "2^(1-n)" in md  # the floor footnote
+
+
+def test_verdict_markdown_orders_sizes_numerically():
+    res = {
+        "5000": paired_seed_comparison([0.9, 0.9], [0.91, 0.89], model_a="tabpfn", model_b="lgbm"),
+        "500": paired_seed_comparison([0.9, 0.9], [0.91, 0.89], model_a="tabpfn", model_b="lgbm"),
+    }
+    md = viz.verdict_markdown(res)
+    assert md.index("| 500 |") < md.index("| 5,000 |")

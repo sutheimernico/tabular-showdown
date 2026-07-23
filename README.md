@@ -5,8 +5,8 @@
 
 ![Learning-size curve: TabPFN v2 wins the small-data regime; tuned LightGBM never catches up through 5k rows](results/learning_curve.png)
 
-**TabPFN v2 (zero training) wins the small-data regime, and tuned LightGBM
-never catches up within the range this repo can actually measure.** From
+**TabPFN wins the small-data regime; tuned LightGBM never catches up through
+5k rows (the largest we ran TabPFN on CPU).** From
 200 to 2,000 training rows, TabPFN beats a freshly Optuna-tuned LightGBM by
 a seed-paired, statistically significant margin every time (e.g. at
 n=2,000: mean ROC-AUC 0.909 vs. 0.906 across 10 subsample seeds each,

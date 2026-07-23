@@ -11,8 +11,8 @@
 a seed-paired, statistically significant margin every time (e.g. at
 n=2,000: mean ROC-AUC 0.909 vs. 0.906 across 10 subsample seeds each,
 paired 95% CI on the gap excludes 0). At 5,000 rows the race is a
-**statistical tie** — the paired 95% CI on the gap (LightGBM − TabPFN)
-straddles zero (mean −0.0014, CI [−0.0072, +0.0045], 5 seed pairs; n<6 also
+**statistical tie** — the paired 95% CI on the gap (TabPFN − LightGBM)
+straddles zero (mean +0.0014, CI [−0.0045, +0.0072], 5 seed pairs; n<6 also
 means Wilcoxon can't reach conventional significance here regardless of
 effect size, see `results/learning_curve_meta.json`) — and the point
 estimate still slightly favors TabPFN (0.9127 vs. 0.9113 mean ROC-AUC).

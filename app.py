@@ -31,6 +31,7 @@ from tabular_showdown import viz
 from tabular_showdown.curve import fit_predict_lgbm_tuned, fit_predict_logreg, subsample_train
 from tabular_showdown.data import frozen_eval_set, load_adult, split_features_target
 from tabular_showdown.metrics import classification_metrics
+from tabular_showdown.stats import paired_from_curve
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -93,7 +94,7 @@ def _load_curve_csv() -> pd.DataFrame:
             "Bitte neu erzeugen mit: uv run python scripts/run_curve.py."
         )
         st.stop()
-    required_columns = {"model", "n_train", "roc_auc", "accuracy", "log_loss", "brier"}
+    required_columns = {"model", "n_train", "seed", "roc_auc", "accuracy", "log_loss", "brier"}
     if not required_columns.issubset(df.columns):
         st.error(
             f"{path.relative_to(ROOT)} hat nicht die erwarteten Spalten. "
@@ -181,6 +182,15 @@ st.image(
         "tuned LightGBM never catches up through 5k rows -- see README.md for the full stats."
     ),
 )
+
+st.subheader("Per-size significance")
+st.caption(
+    "Seed-paired TabPFN v2 vs. tuned LightGBM at every training size both models ran on. "
+    'A "tie" means the paired 95% CI on the ROC-AUC gap includes 0 (the paired t-test does '
+    'not reject at alpha=0.05); a "win" means it excludes 0 -- see "Honest limits" below. '
+    "Computed live from results/learning_curve.csv, the same numbers the README table shows."
+)
+st.markdown(viz.verdict_markdown(paired_from_curve(_load_curve_csv(), "tabpfn", "lgbm")))
 
 st.header("Metrics at a glance")
 curve_sizes = sorted(int(n) for n in _load_curve_csv()["n_train"].unique())

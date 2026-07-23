@@ -73,6 +73,21 @@ def test_app_runs_without_exception_on_default_load():
     assert len(at.dataframe) == 1  # the "Metrics at a glance" table
 
 
+def test_app_renders_the_per_size_verdict_table_with_the_n5000_tie():
+    # The verdict table is rendered as st.markdown (the same string the README
+    # block carries), so it shows up in at.markdown, not at.dataframe.
+    at = AppTest.from_file(str(APP_PATH))
+    at.run(timeout=120)
+    assert not at.exception
+
+    blob = "\n".join(m.value for m in at.markdown)
+    assert "Mean ROC-AUC diff (TabPFN − LightGBM)" in blob
+    assert "| 5,000 | 5 |" in blob
+    assert "Wilcoxon p=0.625 † | tie |" in blob  # the n=5000 tie verdict, same as README
+    assert "| 2,000 | 10 | +0.0033 |" in blob
+    assert "| TabPFN wins |" in blob
+
+
 def test_app_size_slider_updates_the_metrics_table_without_exception():
     at = AppTest.from_file(str(APP_PATH))
     at.run(timeout=120)

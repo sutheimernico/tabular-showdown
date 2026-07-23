@@ -35,6 +35,7 @@ def _isolate_streamlit_cache():
     st.cache_data.clear()
     yield
 
+
 # Contract mirror of app.REQUIRED_RESULT_FILES: every results/ artifact the
 # app hard-requires, paired with the script whose `uv run python` invocation
 # (re)produces it. Kept here rather than imported because importing app.py
@@ -155,6 +156,30 @@ def test_app_shows_german_guard_when_curve_csv_has_wrong_schema():
     assert "uv run python scripts/run_curve.py" in message
 
 
+@pytest.mark.parametrize(
+    "content", ["", "a,b,c\n1,2\n3,4,5,6\n"], ids=["empty-file", "ragged-rows"]
+)
+def test_app_shows_german_guard_when_curve_csv_is_unparseable(content):
+    # pd.read_csv itself raises before the schema check ever runs --
+    # EmptyDataError on an empty file, ParserError on ragged rows -- so this
+    # exercises the read guard, not the column check. Like the schema case it
+    # fires mid-render (after the title + money-chart image render).
+    with TemporaryDirectory(prefix="tabular-showdown-test-app-") as tmp:
+        tmp_root = Path(tmp)
+        app = _clone_app(tmp_root)
+        (tmp_root / "results" / "learning_curve.csv").write_text(content)
+
+        at = AppTest.from_file(str(app))
+        at.run(timeout=60)
+
+    assert not at.exception
+    assert len(at.error) == 1
+    message = at.error[0].value
+    assert "beschädigt" in message  # German "corrupted" wording
+    assert "results/learning_curve.csv" in message
+    assert "uv run python scripts/run_curve.py" in message
+
+
 def test_app_shows_german_guard_when_lgbm_params_json_is_malformed():
     # _load_lgbm_params is reached only through the live-refit button (it
     # feeds _live_refit), so this drives the button; the guard fires on the
@@ -177,5 +202,30 @@ def test_app_shows_german_guard_when_lgbm_params_json_is_malformed():
     assert len(at.error) == 1
     message = at.error[0].value
     assert "beschädigt" in message  # German "corrupted" wording
+    assert "results/lgbm_baseline.json" in message
+    assert "uv run python scripts/run_lgbm_baseline.py" in message
+
+
+def test_app_shows_german_guard_when_lgbm_params_json_lacks_params_key():
+    # Valid JSON, but no "params" key -> KeyError, the other half of
+    # _load_lgbm_params' guard (its docstring claims both). Reached only via
+    # the live-refit button, exactly like the malformed-JSON case above.
+    with TemporaryDirectory(prefix="tabular-showdown-test-app-") as tmp:
+        tmp_root = Path(tmp)
+        app = _clone_app(tmp_root, with_data=True)
+        (tmp_root / "results" / "lgbm_baseline.json").write_text("{}")
+
+        at = AppTest.from_file(str(app))
+        at.run(timeout=60)
+        assert not at.exception
+
+        at.slider[0].set_value(100)
+        at.button[0].set_value(True)
+        at.run(timeout=120)
+
+    assert not at.exception
+    assert len(at.error) == 1
+    message = at.error[0].value
+    assert "beschädigt" in message
     assert "results/lgbm_baseline.json" in message
     assert "uv run python scripts/run_lgbm_baseline.py" in message

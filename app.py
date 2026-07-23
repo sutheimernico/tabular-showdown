@@ -64,8 +64,7 @@ def _ensure_results_available() -> None:
     names = ", ".join(str(path.relative_to(ROOT)) for path, _ in missing)
     commands = ", ".join(f"uv run python {script}" for script in sorted({s for _, s in missing}))
     st.error(
-        f"Ergebnis-Artefakte fehlen: {names}. "
-        f"Bitte zuerst ausführen: {commands} (siehe README.md)."
+        f"Ergebnis-Artefakte fehlen: {names}. Bitte zuerst ausführen: {commands} (siehe README.md)."
     )
     st.stop()
 
@@ -82,10 +81,18 @@ def _load_eval_set():
 @st.cache_data
 def _load_curve_csv() -> pd.DataFrame:
     """Existence of learning_curve.csv is guaranteed by _ensure_results_available
-    (called before this is ever reached) -- the check here is for malformed
-    *content*: a present-but-wrong-schema file, not a missing one."""
+    (called before this is ever reached) -- the checks here are for malformed
+    *content*: an unparseable file, or a present-but-wrong-schema one, not a
+    missing one."""
     path = RESULTS_DIR / "learning_curve.csv"
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except (pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
+        st.error(
+            f"{path.relative_to(ROOT)} ist beschädigt ({exc}). "
+            "Bitte neu erzeugen mit: uv run python scripts/run_curve.py."
+        )
+        st.stop()
     required_columns = {"model", "n_train", "roc_auc", "accuracy", "log_loss", "brier"}
     if not required_columns.issubset(df.columns):
         st.error(

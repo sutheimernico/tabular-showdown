@@ -171,6 +171,29 @@ def test_app_shows_german_guard_when_curve_csv_has_wrong_schema():
     assert "uv run python scripts/run_curve.py" in message
 
 
+def test_app_shows_german_guard_when_curve_csv_is_missing_only_the_seed_column():
+    # Every required column present except `seed` -- the column paired_from_curve
+    # (the per-size verdict table) needs. The wrong-schema test above uses wholly
+    # unrelated columns; this pins the `seed` column added to the guard for the
+    # verdict table specifically, so dropping it can't regress silently.
+    with TemporaryDirectory(prefix="tabular-showdown-test-app-") as tmp:
+        tmp_root = Path(tmp)
+        app = _clone_app(tmp_root)
+        (tmp_root / "results" / "learning_curve.csv").write_text(
+            "model,n_train,roc_auc,accuracy,log_loss,brier\ntabpfn,200,0.88,0.80,0.30,0.10\n"
+        )
+
+        at = AppTest.from_file(str(app))
+        at.run(timeout=60)
+
+    assert not at.exception
+    assert len(at.error) == 1
+    message = at.error[0].value
+    assert "Spalten" in message  # German column-schema wording
+    assert "results/learning_curve.csv" in message
+    assert "uv run python scripts/run_curve.py" in message
+
+
 @pytest.mark.parametrize(
     "content", ["", "a,b,c\n1,2\n3,4,5,6\n"], ids=["empty-file", "ragged-rows"]
 )

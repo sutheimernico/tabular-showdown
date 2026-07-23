@@ -37,7 +37,37 @@ DATA_DIR = ROOT / "data"
 RESULTS_DIR = ROOT / "results"
 FIGURES_DIR = RESULTS_DIR / "figures"
 
+# Every results/ file this app reads, paired with the script that (re)produces
+# it. Checked once, up front, so a checkout where the (expensive: TabPFN +
+# LightGBM training, SHAP) pipeline scripts haven't been run yet fails with
+# one friendly message instead of a raw traceback from the first st.image().
+REQUIRED_RESULT_FILES: list[tuple[Path, str]] = [
+    (RESULTS_DIR / "learning_curve.csv", "scripts/run_curve.py"),
+    (RESULTS_DIR / "learning_curve.png", "scripts/run_curve.py"),
+    (RESULTS_DIR / "lgbm_baseline.json", "scripts/run_lgbm_baseline.py"),
+    (FIGURES_DIR / "calibration.png", "scripts/make_figures.py"),
+    (FIGURES_DIR / "timing.png", "scripts/make_figures.py"),
+    (FIGURES_DIR / "shap_summary.png", "scripts/make_figures.py"),
+    (FIGURES_DIR / "permutation_importance.png", "scripts/make_figures.py"),
+]
+
 st.set_page_config(page_title="Tabular Showdown: TabPFN v2 vs. tuned LightGBM", layout="wide")
+
+
+def _ensure_results_available() -> None:
+    """Friendly error + stop (not a raw traceback) if any results/ artifact
+    this app reads is missing -- e.g. on a fresh checkout before the
+    pipeline scripts have been run."""
+    missing = [(path, script) for path, script in REQUIRED_RESULT_FILES if not path.exists()]
+    if not missing:
+        return
+    names = ", ".join(str(path.relative_to(ROOT)) for path, _ in missing)
+    commands = ", ".join(f"uv run python {script}" for script in sorted({s for _, s in missing}))
+    st.error(
+        f"Ergebnis-Artefakte fehlen: {names}. "
+        f"Bitte zuerst ausführen: {commands} (siehe README.md)."
+    )
+    st.stop()
 
 
 @st.cache_data
@@ -51,12 +81,36 @@ def _load_eval_set():
 
 @st.cache_data
 def _load_curve_csv() -> pd.DataFrame:
-    return pd.read_csv(RESULTS_DIR / "learning_curve.csv")
+    """Existence of learning_curve.csv is guaranteed by _ensure_results_available
+    (called before this is ever reached) -- the check here is for malformed
+    *content*: a present-but-wrong-schema file, not a missing one."""
+    path = RESULTS_DIR / "learning_curve.csv"
+    df = pd.read_csv(path)
+    required_columns = {"model", "n_train", "roc_auc", "accuracy", "log_loss", "brier"}
+    if not required_columns.issubset(df.columns):
+        st.error(
+            f"{path.relative_to(ROOT)} hat nicht die erwarteten Spalten. "
+            "Bitte neu erzeugen mit: uv run python scripts/run_curve.py."
+        )
+        st.stop()
+    return df
 
 
 @st.cache_data
 def _load_lgbm_params() -> dict:
-    return json.loads((RESULTS_DIR / "lgbm_baseline.json").read_text())["params"]
+    """Existence of lgbm_baseline.json is guaranteed by _ensure_results_available
+    -- the try/except here is for malformed *content* (bad JSON or a missing
+    "params" key), not a missing file."""
+    path = RESULTS_DIR / "lgbm_baseline.json"
+    try:
+        return json.loads(path.read_text())["params"]
+    except (json.JSONDecodeError, KeyError) as exc:
+        st.error(
+            f"{path.relative_to(ROOT)} ist beschädigt ({exc}). "
+            "Bitte neu erzeugen mit: uv run python scripts/run_lgbm_baseline.py."
+        )
+        st.stop()
+        raise  # unreachable: st.stop() halts the script; satisfies the -> dict signature
 
 
 @st.cache_data
@@ -104,6 +158,8 @@ def _live_refit(n_train: int, seed: int = 0) -> dict[str, dict[str, float]]:
     }
 
 
+_ensure_results_available()
+
 st.title("Tabular Showdown: TabPFN v2 vs. tuned LightGBM")
 st.caption(
     "A zero-training, in-context transformer vs. a properly tuned gradient booster, "
@@ -115,7 +171,7 @@ st.image(
     str(RESULTS_DIR / "learning_curve.png"),
     caption=(
         "TabPFN v2 (zero training) wins the small-data regime; "
-        "tuned LightGBM overtakes it by ~5k rows."
+        "tuned LightGBM never catches up through 5k rows -- see README.md for the full stats."
     ),
 )
 

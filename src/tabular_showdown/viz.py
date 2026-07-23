@@ -68,9 +68,13 @@ _FLOOR_FOOTNOTE = (
 
 
 def _fmt_signed(x: float) -> str:
-    """+0.0033 / -0.0014 -- 4 dp, explicit sign, typographic minus to match the
-    surrounding README prose."""
-    return f"{x:+.4f}".replace("-", "−")
+    """+0.0033 / −0.0014 -- 4 dp, explicit sign, typographic minus to match the
+    surrounding README prose. A value that rounds to zero is shown unsigned
+    (0.0000), never a misleading −0.0000."""
+    s = f"{x:+.4f}"
+    if s in ("+0.0000", "-0.0000"):
+        return "0.0000"
+    return s.replace("-", "−")
 
 
 def _p_expr(label: str, p: float | None) -> str:
@@ -100,6 +104,8 @@ def _verdict_rows(results: dict[str, PairedResult]) -> tuple[list[str], list[lis
     then means model_a is ahead, aligning with an 'A wins' verdict. The CI
     bounds are negated *and* swapped so [low, high] stays ordered.
     """
+    if not results:
+        raise ValueError("results is empty -- no sizes to render a verdict table for")
     r0 = next(iter(results.values()))
     a = VERDICT_LABELS.get(r0.model_a, r0.model_a)
     b = VERDICT_LABELS.get(r0.model_b, r0.model_b)

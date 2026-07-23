@@ -309,9 +309,28 @@ def test_verdict_markdown_tie_at_five_pairs_appends_floor_footnote():
 
 
 def test_verdict_markdown_orders_sizes_numerically():
+    # 500 vs 1000 (not 500 vs 5000): lexicographically "1000" < "500", so a
+    # regression to plain sorted(str) would put 1,000 first and fail here --
+    # 500/5000 would pass under either order and hide the bug.
     res = {
-        "5000": paired_seed_comparison([0.9, 0.9], [0.91, 0.89], model_a="tabpfn", model_b="lgbm"),
+        "1000": paired_seed_comparison([0.9, 0.9], [0.91, 0.89], model_a="tabpfn", model_b="lgbm"),
         "500": paired_seed_comparison([0.9, 0.9], [0.91, 0.89], model_a="tabpfn", model_b="lgbm"),
     }
     md = viz.verdict_markdown(res)
-    assert md.index("| 500 |") < md.index("| 5,000 |")
+    assert md.index("| 500 |") < md.index("| 1,000 |")
+
+
+def test_verdict_markdown_raises_on_empty_results():
+    # next(iter(...)) on an empty dict would raise a bare StopIteration --
+    # surface an explicit, actionable error instead.
+    with pytest.raises(ValueError, match="empty"):
+        viz.verdict_markdown({})
+
+
+def test_fmt_signed_shows_unsigned_zero_not_negative_zero():
+    # A nonzero value that rounds to 0.0000 must not render as "−0.0000".
+    assert viz._fmt_signed(-0.00001) == "0.0000"
+    assert viz._fmt_signed(0.00001) == "0.0000"
+    # Normal cases keep their explicit sign and typographic minus.
+    assert viz._fmt_signed(0.0033) == "+0.0033"
+    assert viz._fmt_signed(-0.0014) == "−0.0014"

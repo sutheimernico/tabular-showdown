@@ -36,7 +36,7 @@ from tabular_showdown.models import fit_lgbm, predict_proba_positive, tune_lgbm
 # never runs on sizes above this, and never on the full train set.
 TABPFN_ROW_CAP = 10_000
 
-# The curve's sizes and per-size seed counts (design decision, see PLAN.md
+# The curve's sizes and per-size seed counts (design decision, see the project plan
 # M3+M4, widened per the 2026-07-19 SOTA-upgrade plan Task B4 so the paired
 # stats have power): more seeds at small sizes where subsample variance
 # matters most, fewer as the subsample approaches the full train set.

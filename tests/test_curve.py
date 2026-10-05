@@ -302,7 +302,7 @@ def test_compute_seed_spread_is_json_serializable():
 
 def test_compute_seed_spread_on_real_curve_csv_after_seed_expansion():
     """Anchors against the 10/5-seed curve (commit 9dd7729, Task B4), which
-    superseded REVIEW.md B-1's original 2-seed reading at n=5000. Two things
+    superseded review notes B-1's original 2-seed reading at n=5000. Two things
     changed substantively, not just numerically: lgbm's own seed spread at
     n=5000 widened a lot (0.0093 with 2 seeds -> ~0.0158 with 5), and the
     lgbm-vs-tabpfn mean gap FLIPPED SIGN -- lgbm looked ~0.0015 ahead in mean

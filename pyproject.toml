@@ -9,7 +9,7 @@ dependencies = [
     "lightgbm>=4.5",
     "optuna>=4.0",
     # Pinned: last version whose TabPFN-v2 weights download freely from Hugging Face.
-    # tabpfn >= 3.x requires a Prior Labs account + TABPFN_TOKEN (Needs Nico).
+    # tabpfn >= 3.x requires a Prior Labs account + TABPFN_TOKEN (Needs owner).
     "tabpfn==2.0.9",
     "shap>=0.46",
     "matplotlib>=3.9",

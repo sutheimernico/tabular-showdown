@@ -142,7 +142,7 @@ def test_plot_permutation_importance_returns_figure():
     assert "a" in fig.axes[0].get_title(loc="left")  # most important feature named in the title
 
 
-# --- learning_curve_title (REVIEW.md B-1: noise-aware crossover wording) ----
+# --- learning_curve_title (review notes B-1: noise-aware crossover wording) ----
 
 
 def test_learning_curve_title_raises_when_no_lgbm_rows():
@@ -164,7 +164,7 @@ def test_learning_curve_title_raises_when_no_lgbm_rows():
 def test_learning_curve_title_on_real_csv_tabpfn_never_caught_up_after_seed_expansion():
     """The 10/5-seed curve (commit 9dd7729, Task B4) changes which branch of
     learning_curve_title fires at n=5000, not just the numbers feeding it.
-    REVIEW.md B-1's original 2-seed reading had lgbm's mean nose ahead of
+    review notes B-1's original 2-seed reading had lgbm's mean nose ahead of
     tabpfn's by ~0.0015 with disagreeing seed signs, which forced the
     noise-range branch ("crossover... between 2k and 5k"). With 5 seeds,
     lgbm's mean NEVER reaches tabpfn's mean at any measured size (200

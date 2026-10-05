@@ -205,7 +205,7 @@ def _sign_consistent(pairs: list[tuple[float, float]]) -> bool:
 def learning_curve_title(
     df: pd.DataFrame, tabpfn_stopped_at_pretrain_cap: bool, metric: str = "roc_auc"
 ) -> str:
-    """Derive the money-chart headline honestly (REVIEW.md B-1/B-3).
+    """Derive the money-chart headline honestly (review notes B-1/B-3).
 
     Asserts a POINT crossover ("overtakes ... by ~Nk rows") only for a size
     where both models were measured, LightGBM's mean lead over TabPFN there

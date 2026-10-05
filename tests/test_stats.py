@@ -1,10 +1,10 @@
-"""Tests for the paired seed-level model-comparison stats (REVIEW.md B-1,
-research/2026-07-19-tabular-sota.md section 3): a named significance test
+"""Tests for the paired seed-level model-comparison stats (review notes B-1,
+the research notes section 3): a named significance test
 per n_train size, with "tie" as the verdict unless the data proves otherwise.
 
 Hand-computed expectations where practical (diffs [0.01, 0.02, 0.03] -> mean
 0.02, sd 0.01, t = 3.4641, CI = 0.02 +/- 4.3027*0.005774), plus a real-CSV
-anchor at n=5000 mirroring test_curve.py's REVIEW.md B-1 numbers: only 2
+anchor at n=5000 mirroring test_curve.py's review notes B-1 numbers: only 2
 paired seeds today, so the CI is huge and the verdict must be "tie".
 """
 
@@ -153,7 +153,7 @@ def test_paired_seed_comparison_a_wins_when_ci_excludes_zero_below():
 
 
 def test_paired_seed_comparison_tie_when_two_seeds_disagree_in_sign():
-    """Mirrors REVIEW.md B-1's real n=5000 case: only 2 seeds, disagreeing
+    """Mirrors review notes B-1's real n=5000 case: only 2 seeds, disagreeing
     sign -> a necessarily huge CI that must include 0."""
     a = [0.913924, 0.913529]  # tabpfn
     b = [0.910595, 0.919883]  # lgbm
@@ -259,7 +259,7 @@ def test_paired_from_curve_result_values_are_paired_result_instances():
 
 def test_paired_from_curve_on_real_csv_n5000_is_still_a_tie_with_five_pairs():
     """After the seed-expansion compute run (commit 9dd7729, Task B4) there
-    are 5 paired seeds at n=5000, not 2 (REVIEW.md B-1's original reading) --
+    are 5 paired seeds at n=5000, not 2 (review notes B-1's original reading) --
     the tie verdict survives the extra statistical power, but the point
     estimate FLIPPED SIGN: with 2 noisy seeds lgbm looked ~0.0015 ahead in
     mean; with 5 seeds tabpfn is ~0.0014 ahead in mean instead. Either way

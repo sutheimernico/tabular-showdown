@@ -1,5 +1,5 @@
 """Paired seed-level significance stats for model-vs-model comparisons
-(REVIEW.md B-1, research/2026-07-19-tabular-sota.md section 3).
+(review notes B-1, the research notes section 3).
 
 The field's 2026 norm (Position paper, arXiv 2605.17273) is: report a named
 significance test per comparison and default to "tie" unless the data proves
@@ -84,7 +84,7 @@ def paired_seed_comparison(
     Works for any n_pairs >= 2 (a CI/t-test needs at least 1 degree of
     freedom); raises ValueError below that or on mismatched lengths.
 
-    Tie-by-default rule (REVIEW.md B-1, arXiv 2605.17273): verdict is "tie"
+    Tie-by-default rule (review notes B-1, arXiv 2605.17273): verdict is "tie"
     unless the 95% CI on the mean difference excludes 0 -- not whichever mean
     happens to be larger. A CI excluding 0 is equivalent to the two-sided
     paired t-test rejecting at alpha=0.05, so verdict never contradicts t_p

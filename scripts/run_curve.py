@@ -6,7 +6,7 @@ Sweeps TabPFN v2, freshly-tuned LightGBM, and an untuned linear reference
 results/learning_curve_meta.json (seed policy, TabPFN cap + reason, LightGBM
 tuning policy, package versions, total runtime, per-size seed spread, and a
 paired tabpfn-vs-lgbm significance test per size -- see tabular_showdown.stats,
-REVIEW.md B-1).
+review notes B-1).
 
 TabPFN cap: v2's pretraining limit is ~10k rows, so TabPFN never runs above
 10,000 and never on the full train set -- the cap is part of the story, not
@@ -205,7 +205,7 @@ def main(argv: list[str] | None = None) -> None:
         "spread": {
             "metric": "roc_auc",
             "note": "per (n_train, model) mean/std/min/max/n_seeds across subsample "
-            "seeds -- see REVIEW.md B-1/B-5: the headline crossover must not claim "
+            "seeds -- see review notes B-1/B-5: the headline crossover must not claim "
             "more precision than this spread supports",
             "by_size": compute_seed_spread(df, metric="roc_auc"),
         },
@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> None:
             "metric": "roc_auc",
             "note": "per n_train, paired tabpfn-vs-lgbm seed comparison (mean diff, "
             "95% CI, paired t-test, Wilcoxon signed-rank) -- see "
-            "tabular_showdown.stats and REVIEW.md B-1: verdict is 'tie' unless "
+            "tabular_showdown.stats and review notes B-1: verdict is 'tie' unless "
             "the CI excludes 0; only sizes with >=2 shared seeds are included",
             "by_size": {
                 n: result.to_dict()

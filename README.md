@@ -82,7 +82,7 @@ it overtakes LogReg (0.906 vs. 0.901 at n=2,000). Read the small-n
 collapse as a comment on the 10-trial tuning *budget* used everywhere in
 this project, not as "LightGBM is bad at small data" — a wider search
 would likely close most of this gap; this project never tests that
-(REVIEW.md WP-B3, point 1).
+(review notes WP-B3, point 1).
 
 ## Figures
 
@@ -97,7 +97,7 @@ other two by a hair, but on a single 4,000-row split these differences are
 within noise, not a real ranking. LightGBM used to look meaningfully
 worse-calibrated here (Brier 0.109), but that number came from reusing the
 full-train-tuned hyperparameters at a size they were never tuned for
-(REVIEW.md WP-B2) — a mis-tuned configuration, not an honest one. LightGBM
+(review notes WP-B2) — a mis-tuned configuration, not an honest one. LightGBM
 in this figure is now tuned fresh at n_train=2,000 with the same
 10-trial/3-fold recipe used everywhere else in this project, and most of
 the old calibration gap turns out to have been a tuning artifact, not a
@@ -193,7 +193,7 @@ re-run in isolation once the earlier artifacts exist. `results/` and
   TabPFN-vs-LightGBM significance test (paired t-test + Wilcoxon
   signed-rank, "tie" by default unless the 95% CI excludes 0) into
   `results/learning_curve_meta.json` — see `tabular_showdown.stats` and
-  REVIEW.md WP-B1 for why a tie is the default verdict, not whichever mean
+  review notes WP-B1 for why a tie is the default verdict, not whichever mean
   happens to be larger.
 - **Calibration + SHAP figures** (`results/figures/calibration.png`,
   `shap_summary.png`) train all three models fresh at **n_train=2,000**
@@ -204,7 +204,7 @@ re-run in isolation once the earlier artifacts exist. `results/` and
   freshly Optuna-tuned at this size too (10 trials, 3-fold CV, the same
   recipe `run_curve.py` uses) rather than reusing the full-train-tuned
   baseline — it used to reuse those params, which made the calibration
-  comparison a mis-tuned one (REVIEW.md WP-B2); see `figures_meta.json`'s
+  comparison a mis-tuned one (review notes WP-B2); see `figures_meta.json`'s
   `calibration_shap.lgbm_params_source` for the current provenance.
 - **TabPFN permutation importance** (`permutation_importance.png`) runs at
   a *separately reduced* n_train=200 with a 200-row eval subsample and 3
@@ -253,7 +253,7 @@ re-run in isolation once the earlier artifacts exist. `results/` and
 - **LogReg is deliberately untuned** — it's a floor/sanity-check reference,
   not a competitor. Don't read its numbers as "what logistic regression can
   achieve"; a tuned LogReg would do better.
-- **AutoGluon was planned (see `PLAN.md`) but is deferred**, not
+- **AutoGluon was planned but is deferred**, not
   implemented. The three-way comparison here is TabPFN v2 vs. tuned
   LightGBM vs. untuned LogReg only.
 - **CSV upload in the Streamlit app is intentionally disabled** for
@@ -336,6 +336,16 @@ scripts/
   make_figures.py        M5: calibration/timing/SHAP/permutation figures
 app.py                   M6: Streamlit demo
 results/                 committed artifacts (JSON/CSV/PNG/SVG)
-PLAN.md                  original milestone plan
-AUTOPILOT_LOG.md         running log of what was built, when, with what real numbers
 ```
+
+## ML Lab series
+
+Part of **ML Lab**, three small projects that each ask "does the shiny thing actually beat the boring thing, and how would you know?":
+
+- [agentic-analyst](https://github.com/sutheimernico/agentic-analyst) - an LLM data-analyst agent plus a judge that recomputes every claim
+- [tabular-showdown](https://github.com/sutheimernico/tabular-showdown) - TabPFN vs tuned LightGBM on tabular data
+- [timeseries-showdown](https://github.com/sutheimernico/timeseries-showdown) - Chronos foundation models vs classical and GBDT baselines
+
+## License
+
+Code: MIT, see `LICENSE`. Dataset: UCI Adult (Census Income), CC BY 4.0, from the UCI Machine Learning Repository; not covered by the MIT license.

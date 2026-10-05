@@ -103,7 +103,7 @@ def tuned_lgbm_for_calibration(
 ) -> dict:
     """Fresh, honestly per-size-tuned LightGBM for the calibration/SHAP figures.
 
-    REVIEW.md B-2: scripts/make_figures.py used to refit results/lgbm_baseline
+    review notes B-2: scripts/make_figures.py used to refit results/lgbm_baseline
     .json's FULL-TRAIN-tuned params (32,561 rows, 30 Optuna trials) on the
     much smaller calibration subsample -- "a knowingly mis-tuned
     configuration", while TabPFN and LogReg in the same figure are both in
@@ -131,7 +131,7 @@ def tuned_lgbm_for_calibration(
         f"curve:n={len(X_train)}:seed={seed} (fresh {n_trials}-trial/{n_folds}-fold "
         "Optuna re-tune inside make_figures.py, matching curve.py's per-size "
         "recipe -- per-size tuned params are not persisted by run_curve, "
-        "see REVIEW.md B-2)"
+        "see review notes B-2)"
     )
     return {"model": model, "proba": proba, "params": params, "params_source": params_source}
 

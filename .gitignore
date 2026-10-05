@@ -10,3 +10,5 @@ __pycache__/
 AutogluonModels/
 .cache/
 results/*.log
+.env.*
+!.env.example

@@ -16,7 +16,7 @@ single TabPFN predict call's cost sets the budget:
   apples-to-apples comparison. 2000 is the largest size where TabPFN's
   single predict on the full 4,000-row frozen eval set stays a few minutes
   on CPU (measured ~219s -- see results/learning_curve.csv, n_train=2000,
-  seed=0). LightGBM is tuned FRESH at this size (REVIEW.md B-2: this figure
+  seed=0). LightGBM is tuned FRESH at this size (review notes B-2: this figure
   used to reuse results/lgbm_baseline.json's full-train-tuned params, "a
   knowingly mis-tuned configuration" -- TabPFN and logreg were already
   honest per-size configs, LightGBM was not). curve.run_curve tunes fresh
@@ -75,7 +75,7 @@ CALIBRATION_N_TRAIN = 2000
 CALIBRATION_SEED = 0
 # Matches scripts/run_curve.py's LGBM_N_TRIALS/LGBM_N_FOLDS (and
 # curve.fit_predict_lgbm_tuned's own defaults) -- the per-size tuning recipe
-# this figure must match to be an honest comparison (REVIEW.md B-2).
+# this figure must match to be an honest comparison (review notes B-2).
 CALIBRATION_LGBM_N_TRIALS = 10
 CALIBRATION_LGBM_N_FOLDS = 3
 
@@ -131,7 +131,7 @@ def main() -> None:
     print(
         f"tuning LightGBM fresh at n_train={CALIBRATION_N_TRAIN} "
         f"({CALIBRATION_LGBM_N_TRIALS} Optuna trials, {CALIBRATION_LGBM_N_FOLDS}-fold CV, "
-        "the same per-size recipe curve.py uses -- REVIEW.md B-2) ..."
+        "the same per-size recipe curve.py uses -- review notes B-2) ..."
     )
     lgbm_result = explain.tuned_lgbm_for_calibration(
         X_sub,

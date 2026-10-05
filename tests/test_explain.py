@@ -128,7 +128,7 @@ def test_permutation_importance_returns_all_columns():
 
 
 # --- tuned_lgbm_for_calibration -----------------------------------------------
-# REVIEW.md B-2: the calibration/SHAP figure used to refit results/lgbm_baseline
+# review notes B-2: the calibration/SHAP figure used to refit results/lgbm_baseline
 # .json's FULL-TRAIN-tuned params (32,561 rows, 30 trials) at n_train=2000 --
 # "a knowingly mis-tuned configuration". curve.run_curve tunes fresh at every
 # size but never persists the winning params (_to_row keeps metrics only), so

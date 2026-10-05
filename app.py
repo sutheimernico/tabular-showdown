@@ -264,6 +264,6 @@ st.markdown(
     "cross-validated estimate.\n"
     "- LogReg is an **untuned** linear reference, included as a floor, not a serious "
     "competitor.\n"
-    "- AutoGluon, planned in PLAN.md as an AutoML reference point, is **deferred**, not "
+    "- AutoGluon, planned as an AutoML reference point, is **deferred**, not "
     "implemented.\n"
 )
